@@ -1,4 +1,4 @@
-# FeaturePulse — Feature Request Prioritization Tool
+# Backlog — The Ultimate Feature Prioritizer
 
 A production-quality SaaS application for prioritizing feature requests using the RICE framework, built with Next.js 14, TypeScript, Tailwind CSS, and Supabase.
 
