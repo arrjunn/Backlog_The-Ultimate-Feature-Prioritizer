@@ -61,12 +61,16 @@ export default function WorkspaceLayoutClient({
     const { data: profile, isLoading: profileLoading } = useQuery({
         queryKey: ['profile'],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return null
+            let { data: { session } } = await supabase.auth.getSession()
+            if (!session) {
+                const { data: refreshed } = await supabase.auth.refreshSession()
+                session = refreshed.session
+            }
+            if (!session?.user) return null
             const { data } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('id', user.id)
+                .eq('id', session.user.id)
                 .single()
             return data as Profile | null
         },
@@ -94,13 +98,16 @@ export default function WorkspaceLayoutClient({
         queryKey: ['workspace-member', slug],
         enabled: !!workspace && !!profile,
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user || !workspace) return null
+            let { data: { session } } = await supabase.auth.getSession()
+            if (!session) {
+                const { data: refreshed } = await supabase.auth.refreshSession()
+                session = refreshed.session
+            }
+            if (!session?.user || !workspace) return null
             const { data } = await supabase
                 .from('workspace_members')
                 .select('*')
-                .eq('workspace_id', workspace.id)
-                .eq('user_id', user.id)
+                .match({ user_id: session.user.id, workspace_id: workspace.id })
                 .single()
             return data as WorkspaceMember | null
         },

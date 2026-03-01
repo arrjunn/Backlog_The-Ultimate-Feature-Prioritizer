@@ -38,9 +38,13 @@ export default function DashboardPage() {
     const { data: profile, isLoading: profileLoading } = useQuery({
         queryKey: ['profile'],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) throw new Error('Not authenticated')
-            const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+            let { data: { session } } = await supabase.auth.getSession()
+            if (!session) {
+                const { data: refreshed } = await supabase.auth.refreshSession()
+                session = refreshed.session
+            }
+            if (!session?.user) throw new Error('Not authenticated')
+            const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
             return data as unknown as Profile
         },
     })
@@ -48,12 +52,16 @@ export default function DashboardPage() {
     const { data: workspaces, isLoading: workspacesLoading } = useQuery({
         queryKey: ['workspaces'],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return []
+            let { data: { session } } = await supabase.auth.getSession()
+            if (!session) {
+                const { data: refreshed } = await supabase.auth.refreshSession()
+                session = refreshed.session
+            }
+            if (!session?.user) throw new Error('Not authenticated')
             const { data } = await supabase
                 .from('workspace_members')
                 .select('workspace_id, workspaces(*)')
-                .eq('user_id', user.id)
+                .eq('user_id', session.user.id)
             return (data?.map((d: { workspaces: Workspace | null }) => d.workspaces).filter(Boolean) || []) as Workspace[]
         },
     })

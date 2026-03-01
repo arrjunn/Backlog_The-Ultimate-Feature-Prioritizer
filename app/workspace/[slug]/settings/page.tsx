@@ -65,8 +65,12 @@ export default function SettingsPage() {
     const { data: currentUser } = useQuery({
         queryKey: ['current-user'],
         queryFn: async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            return user
+            let { data: { session } } = await supabase.auth.getSession()
+            if (!session) {
+                const { data: refreshed } = await supabase.auth.refreshSession()
+                session = refreshed.session
+            }
+            return session?.user || null
         },
     })
 
