@@ -1,0 +1,30 @@
+﻿app/dashboard/page.tsx(68,18): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "workspaces", never, "POST">', gave the following error.
+    Argument of type '{ name: string; slug: string; owner_id: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "workspaces", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'name' does not exist in type 'never[]'.
+app/dashboard/page.tsx(73,18): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "workspace_members", never, "POST">', gave the following error.
+    Argument of type '{ workspace_id: any; user_id: string; role: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "workspace_members", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'workspace_id' does not exist in type 'never[]'.
+app/dashboard/page.tsx(73,51): error TS2339: Property 'id' does not exist on type 'never'.
+app/workspace/[slug]/settings/page.tsx(76,21): error TS2345: Argument of type '{ name: string; }' is not assignable to parameter of type 'never'.
+app/workspace/[slug]/settings/page.tsx(107,21): error TS2345: Argument of type '{ role: "admin" | "member"; }' is not assignable to parameter of type 'never'.
+app/workspace/[slug]/WorkspaceLayoutClient.tsx(104,33): error TS2339: Property 'role' does not exist on type 'never'.
+components/features/frameworks/FrameworkGuide.tsx(44,50): error TS2345: Argument of type '{ active_framework: FrameworkId; }' is not assignable to parameter of type 'never'.
+components/features/frameworks/FrameworkScoreTabs.tsx(60,78): error TS2345: Argument of type 'Record<string, unknown>' is not assignable to parameter of type 'never'.
+components/features/frameworks/FrameworkSwitcher.tsx(43,50): error TS2345: Argument of type '{ active_framework: FrameworkId; }' is not assignable to parameter of type 'never'.
+components/features/requests/RequestSlideOver.tsx(80,20): error TS2352: Conversion of type 'null' to type '{ id: string; workspace_id: string; title: string; description: string | null; submitted_by: string; status: "backlog" | "now" | "next" | "later" | "shipped"; reach: number; impact: number; ... 27 more ...; wsjf_score: number | null; } & { ...; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'null' is not comparable to type '{ id: string; workspace_id: string; title: string; description: string | null; submitted_by: string; status: "backlog" | "now" | "next" | "later" | "shipped"; reach: number; impact: number; ... 27 more ...; wsjf_score: number | null; }'.
+components/features/requests/RequestSlideOver.tsx(163,46): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "votes", never, "POST">', gave the following error.
+    Argument of type '{ feature_request_id: string; user_id: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "votes", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'feature_request_id' does not exist in type 'never[]'.
+components/features/requests/RequestSlideOver.tsx(182,21): error TS2345: Argument of type '{ status: string; }' is not assignable to parameter of type 'never'.
+components/features/requests/RequestSlideOver.tsx(198,59): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "comments", never, "POST">', gave the following error.
+    Argument of type '{ feature_request_id: string; user_id: string; content: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "comments", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'feature_request_id' does not exist in type 'never[]'.
