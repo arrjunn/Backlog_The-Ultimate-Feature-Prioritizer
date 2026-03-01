@@ -91,7 +91,7 @@ function buildJiraDoc(request: Record<string, unknown>): unknown {
     }
 
     content.push(paragraph('---'))
-    content.push(paragraph('Pushed from Feature Prioritizer'))
+    content.push(paragraph('Pushed from Backlog'))
 
     return { version: 1, type: 'doc', content }
 }

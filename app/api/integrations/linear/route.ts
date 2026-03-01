@@ -58,7 +58,7 @@ function buildLinearDescription(request: Record<string, unknown>): string {
     if (request.description) lines.push(String(request.description))
     lines.push('')
     lines.push('---')
-    lines.push('**Pushed from Feature Prioritizer**')
+    lines.push('**Pushed from Backlog**')
     if (request.rice_score != null) lines.push(`- RICE Score: **${request.rice_score}**`)
     if (request.ice_score != null) lines.push(`- ICE Score: **${request.ice_score}**`)
     if (request.wsjf_score != null) lines.push(`- WSJF Score: **${request.wsjf_score}**`)

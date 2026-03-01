@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                from: 'Feature Prioritizer <onboarding@resend.dev>',
+                from: 'Backlog <onboarding@resend.dev>',
                 to,
                 subject,
                 html,
@@ -103,7 +103,7 @@ function emailWrapper(content: string) {
             <div style="width:32px;height:32px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:8px;display:flex;align-items:center;justify-content:center">
               <span style="color:white;font-size:16px;font-weight:700">P</span>
             </div>
-            <span style="color:#a78bfa;font-weight:600;font-size:16px;letter-spacing:-0.3px">Feature Prioritizer</span>
+            <span style="color:#a78bfa;font-weight:600;font-size:16px;letter-spacing:-0.3px">Backlog</span>
           </div>
         </td></tr>
         <!-- Card -->
