@@ -673,115 +673,9 @@
     color: var(--lp-text);
 }
 
-/* ─── Scroll-driven reveal ─── */
-[data-animate] {
-    opacity: 0;
-    transition-property: transform, opacity, clip-path;
-    transition-duration: 800ms;
-    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-[data-animate].revealed {
-    opacity: 1;
-}
-
-[data-animate="up"] {
-    transform: translateY(40px);
-}
-
-[data-animate="up"].revealed {
-    transform: translateY(0);
-}
-
-[data-animate="down"] {
-    transform: translateY(-40px);
-}
-
-[data-animate="down"].revealed {
-    transform: translateY(0);
-}
-
-[data-animate="left"] {
-    transform: translateX(-50px);
-}
-
-[data-animate="left"].revealed {
-    transform: translateX(0);
-}
-
-[data-animate="right"] {
-    transform: translateX(50px);
-}
-
-[data-animate="right"].revealed {
-    transform: translateX(0);
-}
-
-[data-animate="scale"] {
-    transform: scaleX(0);
-}
-
-[data-animate="scale"].revealed {
-    transform: scaleX(1);
-}
-
-[data-animate="clip"] {
-    clip-path: inset(0 100% 0 0);
-}
-
-[data-animate="clip"].revealed {
-    clip-path: inset(0 0 0 0);
-}
-
-[data-animate="flip"] {
-    transform: perspective(600px) rotateX(-20deg);
-    transform-origin: center top;
-}
-
-[data-animate="flip"].revealed {
-    transform: perspective(600px) rotateX(0);
-}
-
-/* delay helpers */
-[data-delay="0"] {
-    transition-delay: 0ms;
-}
-
-[data-delay="80"] {
-    transition-delay: 80ms;
-}
-
-[data-delay="120"] {
-    transition-delay: 120ms;
-}
-
-[data-delay="200"] {
-    transition-delay: 200ms;
-}
-
-[data-delay="300"] {
-    transition-delay: 300ms;
-}
-
-[data-delay="350"] {
-    transition-delay: 350ms;
-}
-
-[data-delay="500"] {
-    transition-delay: 500ms;
-}
-
-[data-delay="550"] {
-    transition-delay: 550ms;
-}
-
-[data-delay="600"] {
-    transition-delay: 600ms;
-}
-
-[data-delay="750"] {
-    transition-delay: 750ms;
-}
+/* ─── Scroll-driven reveal ───
+   NOTE: JS (useScrollReveal) handles opacity/transform/transitions inline.
+   Do NOT set opacity:0 here — it hides content before JS hydrates. */
 
 /* ─── Landing Page Responsive ─── */
 @media (max-width: 640px) {
@@ -790,20 +684,85 @@
         height: 56px;
     }
 
+    .lp-nav-links {
+        gap: 1rem;
+    }
+
     .lp-hero {
-        padding: 7rem 1.25rem 4rem;
-        min-height: 80vh;
+        padding: 6rem 1.25rem 3rem;
+        min-height: auto;
+    }
+
+    .lp-hero-heading {
+        font-size: clamp(2.2rem, 10vw, 3.5rem);
+        line-height: 1.1;
+    }
+
+    .lp-hero-sub {
+        font-size: 0.85rem;
+        margin-top: 1.5rem;
     }
 
     .lp-hero-cta {
         flex-direction: column;
         align-items: flex-start;
         gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .lp-section {
+        padding: 3rem 1.25rem;
+    }
+
+    .lp-section-heading {
+        font-size: clamp(1.6rem, 6vw, 2.5rem);
+    }
+
+    .lp-quote-section {
+        padding: 3rem 1.25rem;
+    }
+
+    .lp-blockquote {
+        font-size: clamp(1.1rem, 4vw, 1.6rem);
+        padding-left: 1.25rem;
+    }
+
+    .lp-rice-section {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .lp-rice-left {
+        position: static;
+    }
+
+    .lp-formula-card {
+        padding: 1.5rem;
+    }
+
+    .lp-cta-section {
+        padding: 4rem 1.25rem;
+    }
+
+    .lp-cta-heading {
+        font-size: clamp(2rem, 8vw, 3.5rem);
     }
 
     .lp-footer {
         flex-direction: column;
         text-align: center;
+        gap: 0.75rem;
+        padding: 1.5rem 1.25rem;
+    }
+
+    .lp-footer-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    .lp-rule {
+        margin: 0 1.25rem;
     }
 }
 

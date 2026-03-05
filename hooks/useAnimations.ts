@@ -280,7 +280,7 @@ export function useRipple() {
                 left: ${x - size / 2}px;
                 top: ${y - size / 2}px;
                 border-radius: 50%;
-                background: radial-gradient(circle, rgba(181,101,43,0.3) 0%, transparent 70%);
+                background: radial-gradient(circle, rgba(255,215,0,0.2) 0%, transparent 70%);
                 transform: scale(0);
                 animation: ripple-expand 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
                 pointer-events: none;
@@ -313,8 +313,7 @@ export function useStaggerChildren(staggerMs = 80) {
         children.forEach((child, i) => {
             child.style.opacity = '0'
             child.style.transform = 'translateY(40px) scale(0.95)'
-            child.style.filter = 'blur(3px)'
-            child.style.transition = `all 600ms cubic-bezier(0.22, 1, 0.36, 1) ${i * staggerMs}ms`
+            child.style.transition = `opacity 600ms cubic-bezier(0.22, 1, 0.36, 1) ${i * staggerMs}ms, transform 600ms cubic-bezier(0.22, 1, 0.36, 1) ${i * staggerMs}ms`
         })
 
         const observer = new IntersectionObserver(
@@ -323,7 +322,6 @@ export function useStaggerChildren(staggerMs = 80) {
                     children.forEach((child) => {
                         child.style.opacity = '1'
                         child.style.transform = 'translateY(0) scale(1)'
-                        child.style.filter = 'blur(0)'
                     })
                     observer.unobserve(container)
                 }
