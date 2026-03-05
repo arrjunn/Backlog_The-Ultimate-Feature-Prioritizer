@@ -214,7 +214,7 @@ export default function LandingPage() {
 
             {/* Blockquote callout */}
             <section className="lp-quote-section">
-                <blockquote className="lp-blockquote" data-animate="clip">
+                <blockquote className="lp-blockquote" data-animate="up" data-delay="100">
                     <p>&ldquo;the best product decisions aren&rsquo;t the loudest ones.</p>
                     <p>they&rsquo;re the most clearly understood.&rdquo;</p>
                 </blockquote>
