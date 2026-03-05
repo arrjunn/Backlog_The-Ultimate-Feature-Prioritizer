@@ -25,6 +25,7 @@ import { STATUS_CONFIG } from '@/lib/utils/rice'
 import { FRAMEWORKS } from '@/lib/utils/frameworks'
 import { FeatureRequest } from '@/types/database.types'
 import { useWorkspace } from '../WorkspaceLayoutClient'
+import { useScrollReveal } from '@/hooks/useAnimations'
 import { cn } from '@/lib/utils/cn'
 
 const COLORS = ['#8b5cf6', '#f97316', '#3b82f6', '#6b7280', '#22c55e']
@@ -61,6 +62,7 @@ function StatCard({
 export default function InsightsPage() {
     const { slug } = useParams<{ slug: string }>()
     const { workspace } = useWorkspace()
+    useScrollReveal()
     const supabase = createClient()
 
     const { data: requests, isLoading } = useQuery({

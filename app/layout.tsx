@@ -1,14 +1,22 @@
 import type { Metadata } from 'next'
-import { Inter, Playfair_Display } from 'next/font/google'
+import { Space_Grotesk, Space_Mono, Playfair_Display } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { QueryProvider } from '@/components/providers/QueryProvider'
+import { AnimationProvider } from '@/components/providers/AnimationProvider'
 import { Toaster } from 'sonner'
 
-const inter = Inter({
+const spaceGrotesk = Space_Grotesk({
     subsets: ['latin'],
-    variable: '--font-inter',
+    variable: '--font-space-grotesk',
     display: 'swap',
+})
+
+const spaceMono = Space_Mono({
+    subsets: ['latin'],
+    variable: '--font-space-mono',
+    display: 'swap',
+    weight: ['400', '700'],
 })
 
 const playfair = Playfair_Display({
@@ -37,7 +45,7 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={`${inter.variable} ${playfair.variable} ${inter.className}`}>
+            <body className={`${spaceGrotesk.variable} ${spaceMono.variable} ${playfair.variable} ${spaceGrotesk.className}`}>
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="system"
@@ -45,7 +53,9 @@ export default function RootLayout({
                     disableTransitionOnChange
                 >
                     <QueryProvider>
-                        {children}
+                        <AnimationProvider>
+                            {children}
+                        </AnimationProvider>
                         <Toaster
                             position="bottom-right"
                             toastOptions={{

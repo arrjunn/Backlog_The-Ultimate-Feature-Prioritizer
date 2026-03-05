@@ -24,6 +24,7 @@ import { STATUS_CONFIG, FeatureStatus, formatRelativeDate } from '@/lib/utils/ri
 import { FeatureRequest, Profile } from '@/types/database.types'
 import { cn } from '@/lib/utils/cn'
 import { useWorkspace } from '../WorkspaceLayoutClient'
+import { useScrollReveal } from '@/hooks/useAnimations'
 
 type SortOption = 'active_score' | 'vote_count' | 'created_at'
 type SortDir = 'asc' | 'desc'
@@ -61,6 +62,7 @@ function getFrameworkScoreValue(request: Partial<FeatureRequest>, frameworkId: s
 export default function BacklogPage() {
     const { slug } = useParams<{ slug: string }>()
     const { workspace, profile, isAdmin, searchQuery, showNewRequestModal, setShowNewRequestModal, activeFramework } = useWorkspace()
+    useScrollReveal()
     const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null)
     const [sortBy, setSortBy] = useState<SortOption>('active_score')
     const [sortDir, setSortDir] = useState<SortDir>('desc')

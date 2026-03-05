@@ -1,4 +1,5 @@
 import { LoginForm } from '@/components/features/auth/LoginForm'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
@@ -12,7 +13,10 @@ export default function LoginPage() {
         <div className="auth-root">
             {/* Left panel — editorial */}
             <div className="auth-left">
-                <Link href="/" className="auth-logo">backlog</Link>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Link href="/" className="auth-logo">backlog</Link>
+                    <ThemeToggle />
+                </div>
                 <div className="auth-left-body">
                     <blockquote className="auth-quote">
                         "the best product decisions aren't the loudest ones.
@@ -35,7 +39,10 @@ export default function LoginPage() {
 
             {/* Right panel — form */}
             <div className="auth-right">
-                <Link href="/" className="auth-logo auth-logo-mobile">backlog</Link>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 400, marginBottom: '1rem' }}>
+                    <Link href="/" className="auth-logo auth-logo-mobile">backlog</Link>
+                    <ThemeToggle className="auth-logo-mobile" />
+                </div>
                 <div className="auth-card">
                     <div className="auth-card-header">
                         <h1 className="auth-heading">welcome back.</h1>

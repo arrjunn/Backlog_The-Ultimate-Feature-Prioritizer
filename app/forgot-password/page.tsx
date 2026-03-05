@@ -7,6 +7,7 @@ import { z } from 'zod'
 import Link from 'next/link'
 import { Loader2, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -59,7 +60,10 @@ export default function ForgotPasswordPage() {
 
     return (
         <div className="auth-solo">
-            <Link href="/" className="auth-logo">backlog</Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <Link href="/" className="auth-logo">backlog</Link>
+                <ThemeToggle />
+            </div>
             <div className="auth-solo-card">
                 <div className="auth-card-header">
                     <h1 className="auth-heading">reset your password.</h1>

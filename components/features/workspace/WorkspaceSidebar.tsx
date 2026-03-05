@@ -11,8 +11,6 @@ import {
     Settings,
     Zap,
     LogOut,
-    Moon,
-    Sun,
     Bell,
     Search,
     Plus,
@@ -22,12 +20,12 @@ import {
     User,
     BookOpen,
 } from 'lucide-react'
-import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { WorkspaceAvatar } from './WorkspaceAvatar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FrameworkSwitcher } from '@/components/features/frameworks/FrameworkSwitcher'
@@ -74,7 +72,6 @@ export function WorkspaceSidebar({
 }) {
     const pathname = usePathname()
     const router = useRouter()
-    const { theme, setTheme } = useTheme()
     const supabase = createClient()
 
     const handleLogout = async () => {
@@ -140,13 +137,10 @@ export function WorkspaceSidebar({
 
             {/* Bottom user section */}
             <div className="p-3 border-t border-border space-y-1">
-                <button
-                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                >
-                    {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                    {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-                </button>
+                <ThemeToggle
+                    showLabel
+                    className="theme-toggle--with-label w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                />
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

@@ -4,12 +4,13 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Loader2, LogOut, ArrowRight, Moon, Sun, FolderOpen } from 'lucide-react'
+import { Plus, Loader2, LogOut, ArrowRight, FolderOpen } from 'lucide-react'
 import { WorkspaceAvatar } from '@/components/features/workspace/WorkspaceAvatar'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { createUntypedClient } from '@/lib/supabase/untyped-client'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -23,17 +24,19 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useTheme } from 'next-themes'
+import { useGlassNav, useScrollReveal } from '@/hooks/useAnimations'
 
 export default function DashboardPage() {
     const router = useRouter()
     const queryClient = useQueryClient()
     const supabase = createClient()
     const supabaseRaw = createUntypedClient()
-    const { theme, setTheme } = useTheme()
     const [workspaceName, setWorkspaceName] = useState('')
     const [isCreating, setIsCreating] = useState(false)
     const [showCreateForm, setShowCreateForm] = useState(false)
+
+    const navRef = useGlassNav()
+    useScrollReveal()
 
     const { data: profile, isLoading: profileLoading } = useQuery({
         queryKey: ['profile'],
@@ -107,16 +110,10 @@ export default function DashboardPage() {
     return (
         <div className="dash-root">
             {/* Topbar */}
-            <header className="dash-nav">
+            <header className="dash-nav" ref={navRef}>
                 <Link href="/" className="dash-logo">backlog</Link>
                 <div className="dash-nav-right">
-                    <button
-                        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                        className="dash-icon-btn"
-                        aria-label="Toggle theme"
-                    >
-                        {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-                    </button>
+                    <ThemeToggle className="dash-icon-btn" />
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button className="dash-avatar-btn">
