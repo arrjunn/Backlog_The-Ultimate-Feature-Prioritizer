@@ -34,7 +34,6 @@ export function useScrollReveal() {
                 const h = el as HTMLElement
                 h.style.opacity = '1'
                 h.style.transform = 'none'
-                h.style.filter = 'none'
                 h.style.clipPath = 'none'
             })
             return
@@ -46,7 +45,6 @@ export function useScrollReveal() {
             const dir = (h.dataset.animate || 'up') as RevealDirection
             h.style.opacity = dir === 'clip' ? '1' : '0'
             h.style.transform = REVEAL_TRANSFORMS[dir] || REVEAL_TRANSFORMS.up
-            h.style.filter = dir === 'clip' ? 'none' : 'blur(4px)'
             h.style.transition = 'none'
             if (dir === 'clip') {
                 h.style.clipPath = 'inset(100% 0 0 0)'
@@ -63,7 +61,7 @@ export function useScrollReveal() {
             const dir = (h.dataset.animate || 'up') as RevealDirection
             h.style.transition = dir === 'clip'
                 ? `clip-path ${dur}ms cubic-bezier(0.22, 1, 0.36, 1)`
-                : `opacity ${dur}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${dur}ms cubic-bezier(0.22, 1, 0.36, 1), filter ${dur}ms cubic-bezier(0.22, 1, 0.36, 1)`
+                : `opacity ${dur}ms cubic-bezier(0.22, 1, 0.36, 1), transform ${dur}ms cubic-bezier(0.22, 1, 0.36, 1)`
         })
 
         const observer = new IntersectionObserver(
@@ -79,7 +77,6 @@ export function useScrollReveal() {
                             } else {
                                 el.style.opacity = '1'
                                 el.style.transform = dir === 'flip' ? 'perspective(1200px) rotateX(0deg)' : 'translate(0) scale(1)'
-                                el.style.filter = 'blur(0)'
                             }
                         }, delay)
                         observer.unobserve(el)
@@ -111,8 +108,8 @@ export function useCursorGlow() {
         }
 
         const loop = () => {
-            cx += (mx - cx) * 0.12
-            cy += (my - cy) * 0.12
+            cx += (mx - cx) * 0.35
+            cy += (my - cy) * 0.35
             root.style.setProperty('--cursor-x', `${cx}px`)
             root.style.setProperty('--cursor-y', `${cy}px`)
             raf = requestAnimationFrame(loop)
@@ -190,7 +187,7 @@ export function use3DTilt(maxTilt = 12) {
             // Dynamic shadow
             const shadowX = -x * 20
             const shadowY = -y * 20
-            el.style.boxShadow = `${shadowX}px ${shadowY}px 40px rgba(181, 101, 43, 0.15), 0 0 60px rgba(181, 101, 43, 0.05)`
+            el.style.boxShadow = `${shadowX}px ${shadowY}px 40px rgba(0, 0, 0, 0.12), 0 0 60px rgba(0, 0, 0, 0.04)`
             // Inner glow via custom property
             el.style.setProperty('--tilt-x', `${(x + 0.5) * 100}%`)
             el.style.setProperty('--tilt-y', `${(y + 0.5) * 100}%`)
