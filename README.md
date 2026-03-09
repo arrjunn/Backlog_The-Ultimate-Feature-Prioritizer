@@ -2,7 +2,7 @@
 
 A production-quality SaaS for teams to collect, score, and ship the right features. Built with Next.js 14, TypeScript, Tailwind CSS, and Supabase.
 
-**Live Demo**: [backlog.vercel.app](https://backlog.vercel.app) *(update with your actual URL)*
+**Live Demo**: [backlog-the-ultimate-feature-priori.vercel.app](https://backlog-the-ultimate-feature-priori.vercel.app/)
 
 ---
 
