@@ -1,173 +1,263 @@
 # Backlog — The Ultimate Feature Prioritizer
 
-A production-quality SaaS application for prioritizing feature requests using the RICE framework, built with Next.js 14, TypeScript, Tailwind CSS, and Supabase.
+A production-quality SaaS for teams to collect, score, and ship the right features. Built with Next.js 14, TypeScript, Tailwind CSS, and Supabase.
+
+**Live Demo**: [backlog.vercel.app](https://backlog.vercel.app) *(update with your actual URL)*
+
+---
+
+## What It Does
+
+Backlog replaces messy spreadsheets and gut-feel prioritization with a structured system. Teams submit feature requests, score them with proven frameworks, vote on what matters, and visualize their roadmap — all in real time.
+
+---
 
 ## Features
 
-- 🎯 **RICE Scoring** — Objectively prioritize features with Reach, Impact, Confidence, Effort scores
-- 🗳️ **Team Voting** — Let your team upvote features they care about
-- 📋 **Kanban Board** — Drag and drop feature requests between Now/Next/Later/Backlog
-- 📊 **Insights & Analytics** — Bar, pie, and line charts for your feature backlog
-- 💬 **Real-time Collaboration** — Comments and vote counts update live via Supabase Realtime
-- 🔐 **Auth** — Email/password + Google OAuth with Supabase Auth
-- 🌙 **Dark Mode** — System-aware theme with toggle
-- 📱 **Responsive** — Mobile-friendly with hamburger menu
+### Prioritization Frameworks (7 built-in)
+- **RICE** — Reach, Impact, Confidence, Effort
+- **MoSCoW** — Must, Should, Could, Won't
+- **JTBD** — Jobs To Be Done scoring
+- **Kano** — Customer satisfaction model
+- **ICE** — Impact, Confidence, Ease
+- **WSJF** — Weighted Shortest Job First
+- **Value vs Effort** — Simple 2-axis scoring
+
+### Core Features
+- **Backlog Table** — Sortable, filterable table with tag system and framework score badges
+- **Kanban Board** — Drag-and-drop cards between Now / Next / Later / Backlog columns
+- **Team Voting** — One vote per user per request, real-time count updates
+- **Comments** — Threaded discussions on each feature request
+- **Insights Dashboard** — Bar, pie, and line charts for backlog analytics
+- **Command Palette** — `Cmd+K` to quickly search and navigate
+- **Activity Feed** — Live feed of recent workspace activity
+- **Online Presence** — See who's currently viewing the workspace
+
+### UX Details
+- **Dark/Light Mode** — Auto-detects time of day (6am-6pm = light), manual toggle override
+- **Lofi Player** — Built-in music player (SomaFM stations) + ambient sounds (rain, wind, cafe, waves)
+- **Hero Cipher Effect** — Typewriter + scramble/decode animation on the landing page
+- **Smooth Sidebar** — Hover-to-expand with 350ms cubic-bezier transitions
+- **Responsive** — Mobile-friendly with adaptive layouts
+- **Brutalist Design** — Editorial typography with monospace + serif fonts, grain texture, custom cursor
+
+---
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui
-- **Database & Auth**: Supabase (PostgreSQL + Row Level Security)
-- **Real-time**: Supabase Realtime
-- **State Management**: TanStack Query (React Query)
-- **Forms**: React Hook Form + Zod
-- **Drag & Drop**: @dnd-kit/core
-- **Charts**: Recharts
-- **Notifications**: Sonner
-- **Deployment**: Vercel
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS + shadcn/ui + custom CSS design system |
+| Database | Supabase (PostgreSQL + Row Level Security) |
+| Auth | Supabase Auth (Email/Password + Google OAuth) |
+| Real-time | Supabase Realtime (presence + broadcasts) |
+| State | TanStack Query (React Query) |
+| Forms | React Hook Form + Zod validation |
+| Drag & Drop | @dnd-kit/core + @dnd-kit/sortable |
+| Charts | Recharts |
+| Animations | Custom hooks (scroll reveal, parallax, 3D tilt, magnetic buttons) |
+| Notifications | Sonner toast |
+| Deployment | Vercel |
+
+---
+
+## Project Structure
+
+```
+app/
+  page.tsx                          # Landing page (hero, demo board, framework picker)
+  layout.tsx                        # Root layout with ThemeProvider, QueryProvider
+  dashboard/page.tsx                # Workspace list + creation
+  login/page.tsx                    # Email + Google sign in
+  signup/page.tsx                   # Sign up with password strength meter
+  forgot-password/page.tsx          # Password reset request
+  verify-email/page.tsx             # Email verification prompt
+  auth/
+    callback/route.ts               # OAuth callback handler
+    reset-password/page.tsx         # Set new password
+  workspace/[slug]/
+    layout.tsx                      # Server-side auth guard
+    WorkspaceLayoutClient.tsx       # Sidebar + command bar + context provider
+    page.tsx                        # Redirects to /backlog
+    backlog/page.tsx                # Table view — sort, filter, search, tag filter
+    board/page.tsx                  # Kanban — drag cards, confetti on ship
+    insights/page.tsx               # Charts — status breakdown, trends, top requests
+    frameworks/page.tsx             # Framework comparison + guide
+    settings/page.tsx               # Workspace name, members, roles, integrations
+  api/
+    ai-suggest/route.ts             # AI-powered feature suggestions
+    digest/route.ts                 # Email digest generation
+    notify/route.ts                 # Notification dispatch
+    integrations/
+      jira/route.ts                 # Jira sync
+      linear/route.ts               # Linear sync
+      notion/route.ts               # Notion sync
+
+components/
+  ui/                               # shadcn/ui primitives (button, input, dialog, etc.)
+  providers/
+    ThemeProvider.tsx                # next-themes wrapper
+    QueryProvider.tsx                # TanStack Query wrapper
+    AnimationProvider.tsx            # Page transitions + cursor
+  features/
+    auth/
+      LoginForm.tsx                 # Email/password login form
+      SignupForm.tsx                 # Signup with strength indicator
+      GoogleButton.tsx              # Google OAuth button
+    requests/
+      RequestModal.tsx              # Create/edit feature request
+      RequestSlideOver.tsx          # Detail panel with comments + scoring
+      RICEForm.tsx                  # RICE scoring sliders
+    workspace/
+      WorkspaceSidebar.tsx          # Collapsible icon rail + expanded nav
+      CommandPalette.tsx            # Cmd+K search overlay
+      ActivityFeed.tsx              # Recent activity stream
+      OnlinePresenceAvatars.tsx     # Live user presence dots
+      LofiPlayer.tsx                # Music + ambiance player
+      WorkspaceAvatar.tsx           # Deterministic workspace icon
+    frameworks/
+      FrameworkSwitcher.tsx         # Switch active scoring framework
+      FrameworkGuide.tsx            # Framework explanations
+
+hooks/
+  useAnimations.ts                  # Scroll reveal, parallax, 3D tilt, magnetic, glass nav
+  useAutoTheme.ts                   # Time-based auto dark/light with manual override
+  useWorkspacePresence.ts           # Supabase Realtime presence tracking
+
+lib/
+  supabase/
+    client.ts                       # Browser Supabase client (typed)
+    server.ts                       # Server Supabase client
+    untyped-client.ts               # Raw client for admin operations
+    api-auth.ts                     # API route auth helpers
+  utils/
+    rice.ts                         # Score calculation, status config, slug generation
+    cn.ts                           # Tailwind class merging (clsx + twMerge)
+    shared.ts                       # Shared utilities (getInitials, etc.)
+
+types/
+  database.types.ts                 # Supabase-generated table types
+
+supabase/migrations/
+  20240101000000_initial_schema.sql         # Core tables + RLS + triggers
+  20240102000000_fix_workspace_rls.sql      # RLS policy fixes
+  20240103000000_fix_rls_recursion.sql      # Recursive RLS fix
+  20260221000000_add_frameworks.sql         # Multi-framework support
+  20260228000000_add_viewer_role.sql        # Viewer role for members
+  20260228000001_workspace_integrations.sql # Integration settings table
+  20260308000000_add_performance_indexes.sql # Query performance indexes
+
+middleware.ts                       # Route protection (redirect unauthenticated users)
+vercel.json                         # Vercel deployment config
+```
+
+---
 
 ## Getting Started
 
 ### 1. Clone & Install
 
 ```bash
-git clone <your-repo-url>
-cd feature-prioritizer
+git clone https://github.com/arrjunn/Backlog_The-Ultimate-Feature-Prioritizer.git
+cd Backlog_The-Ultimate-Feature-Prioritizer
 npm install
 ```
 
 ### 2. Set Up Supabase
 
-1. Create a new project at [supabase.com](https://supabase.com)
-2. Go to **Settings → API** and copy your Project URL and anon key
-3. Enable **Google OAuth**: Go to **Authentication → Providers → Google**, enter your Google OAuth credentials
-4. Set the **Site URL** in **Authentication → URL Configuration** to your app URL (e.g., `http://localhost:3000`)
+1. Create a project at [supabase.com](https://supabase.com)
+2. Go to **Settings > API** — copy your Project URL and anon key
+3. Enable **Google OAuth**: **Authentication > Providers > Google** with your Google Cloud credentials
+4. Set **Site URL** in **Authentication > URL Configuration** to `http://localhost:3000`
 5. Add `http://localhost:3000/auth/callback` to **Redirect URLs**
 
-### 3. Configure Environment Variables
+### 3. Environment Variables
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Fill in `.env.local`:
-
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # Only needed for admin operations
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-### 4. Run Supabase Migrations
+### 4. Run Migrations
 
-Option A — Supabase Dashboard:
+**Option A** — Supabase Dashboard:
 1. Go to **SQL Editor** in your Supabase project
-2. Copy and paste the contents of `supabase/migrations/20240101000000_initial_schema.sql`
-3. Click **Run**
+2. Run each migration file in `supabase/migrations/` in order
 
-Option B — Supabase CLI:
+**Option B** — Supabase CLI:
 ```bash
-npm install -g supabase
-supabase login
-supabase link --project-ref your-project-ref
-supabase db push
+npx supabase login
+npx supabase link --project-ref your-project-ref
+npx supabase db push
 ```
 
-### 5. Run the Development Server
+### 5. Run
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000)
 
-## Project Structure
-
-```
-/app
-  /layout.tsx              # Root layout with providers
-  /page.tsx                # Landing page
-  /login/page.tsx          # Login with email + Google
-  /signup/page.tsx         # Signup with password strength
-  /forgot-password/page.tsx
-  /verify-email/page.tsx
-  /dashboard/page.tsx      # Workspace list + creation
-  /workspace/[slug]/
-    layout.tsx             # Server auth check
-    WorkspaceLayoutClient.tsx  # Sidebar + topbar + context
-    page.tsx               # Redirects to /backlog
-    /backlog/page.tsx      # Table view with filters + sort
-    /board/page.tsx        # Kanban drag-and-drop
-    /insights/page.tsx     # Charts and analytics
-    /settings/page.tsx     # Workspace settings + members
-  /auth/
-    /callback/route.ts     # OAuth callback handler
-    /reset-password/page.tsx
-
-/components
-  /ui/                     # shadcn/ui components
-  /providers/
-    ThemeProvider.tsx      # next-themes wrapper
-    QueryProvider.tsx      # TanStack Query wrapper
-  /features/
-    /auth/
-      LoginForm.tsx
-      SignupForm.tsx
-      GoogleButton.tsx
-    /requests/
-      RequestModal.tsx     # New feature request dialog
-      RequestSlideOver.tsx # Detail panel with comments
-      RICEForm.tsx         # RICE scoring sliders
-    /workspace/
-      WorkspaceSidebar.tsx # Nav + user menu
-
-/lib
-  /supabase/
-    client.ts              # Browser Supabase client
-    server.ts              # Server Supabase client
-  /utils/
-    rice.ts                # RICE score calculation, status config
-    cn.ts                  # Tailwind class merging
-
-/types
-  database.types.ts        # Supabase table types
-
-/supabase
-  /migrations/
-    20240101000000_initial_schema.sql  # All tables + RLS + triggers
-
-/middleware.ts             # Route protection
-```
-
-## Deployment on Vercel
-
-1. Push your code to GitHub
-2. Import the repository on [Vercel](https://vercel.com)
-3. Add all environment variables from `.env.local`
-4. Set `NEXT_PUBLIC_SITE_URL` to your Vercel deployment URL
-5. Update Supabase redirect URLs to include your Vercel URL
-6. Deploy!
+---
 
 ## Database Schema
 
-See `supabase/migrations/20240101000000_initial_schema.sql` for the full schema including:
+| Table | Purpose |
+|-------|---------|
+| `profiles` | User profiles (synced from Supabase Auth via trigger) |
+| `workspaces` | Team workspaces with slug, name, active framework |
+| `workspace_members` | Many-to-many with roles: `admin`, `member`, `viewer` |
+| `feature_requests` | Core table — title, description, status, RICE scores, tags, framework scores |
+| `votes` | One vote per user per request (unique constraint) |
+| `comments` | Threaded comments on feature requests |
+| `workspace_integrations` | Jira/Linear/Notion integration settings |
 
-- `profiles` — User profiles synced from Supabase Auth
-- `workspaces` — Team workspaces
-- `workspace_members` — Many-to-many with roles (admin/member)
-- `feature_requests` — Core table with RICE scores (auto-calculated as stored column)
-- `votes` — One vote per user per request
-- `comments` — Nested comments on requests
+All tables have **Row Level Security (RLS)** enabled. Members can only access data within their workspaces.
 
-All tables have Row Level Security (RLS) enabled.
+---
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push to GitHub
+2. Import on [vercel.com](https://vercel.com)
+3. Add environment variables
+4. Set `NEXT_PUBLIC_SITE_URL` to your Vercel URL
+5. Update Supabase redirect URLs to include your Vercel domain
+6. Deploy
+
+---
 
 ## Google OAuth Setup
 
 1. Create a project on [Google Cloud Console](https://console.cloud.google.com)
 2. Enable the **Google+ API**
-3. Create OAuth 2.0 credentials (Web application)
-4. Add your Supabase OAuth callback URL as an authorized redirect URI:
-   `https://your-project.supabase.co/auth/v1/callback`
-5. Copy Client ID and Client Secret to Supabase **Authentication → Providers → Google**
+3. Create **OAuth 2.0 credentials** (Web application type)
+4. Add authorized redirect URI: `https://your-project.supabase.co/auth/v1/callback`
+5. Copy Client ID + Secret to Supabase **Authentication > Providers > Google**
+
+---
+
+## Author
+
+**Arjun Varshney**
+
+- [GitHub](https://github.com/arrjunn)
+- [LinkedIn](https://www.linkedin.com/in/arjun-varshney-/)
+- [Portfolio](https://determined-burst-7ca.notion.site/Personal-Portfolio-021b6fec0d0049819cf42ecdd8126de4)
+
+---
+
+## License
+
+MIT
