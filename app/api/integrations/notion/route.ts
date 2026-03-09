@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { authenticateApiRoute } from '@/lib/supabase/api-auth'
+import { getErrorMessage } from '@/lib/utils/shared'
 
 export async function POST(req: NextRequest) {
+    // Auth check
+    const auth = await authenticateApiRoute()
+    if (auth.error) return auth.error
+
     try {
         const { apiKey, databaseId, request } = await req.json()
 
@@ -55,8 +60,8 @@ export async function POST(req: NextRequest) {
 
         const page = await res.json()
         return NextResponse.json({ url: page.url, id: page.id })
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message ?? 'Unknown error' }, { status: 500 })
+    } catch (err: unknown) {
+        return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 })
     }
 }
 

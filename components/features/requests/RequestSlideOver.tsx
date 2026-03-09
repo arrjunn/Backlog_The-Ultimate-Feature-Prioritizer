@@ -43,9 +43,11 @@ import {
 } from '@/lib/utils/rice'
 import { FeatureRequest, Profile, Comment, Vote } from '@/types/database.types'
 import { cn } from '@/lib/utils/cn'
+import { getInitials } from '@/lib/utils/shared'
 import { FrameworkScoreTabs } from '@/components/features/frameworks/FrameworkScoreTabs'
 import { useWorkspace } from '@/app/workspace/[slug]/WorkspaceLayoutClient'
 import { loadConfig } from '@/components/features/integrations/IntegrationsCard'
+import confetti from 'canvas-confetti'
 
 interface RequestSlideOverProps {
     requestId: string | null
@@ -142,7 +144,8 @@ export function RequestSlideOver({
             )
             .subscribe()
         return () => { supabase.removeChannel(channel) }
-    }, [requestId, supabase, refetchComments])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [requestId])
 
     // Real-time votes
     useEffect(() => {
@@ -163,7 +166,8 @@ export function RequestSlideOver({
             )
             .subscribe()
         return () => { supabase.removeChannel(channel) }
-    }, [requestId, supabase, queryClient])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [requestId])
 
     const userVote = votes?.find((v) => v.user_id === currentUser?.id)
     const voteCount = votes?.length || 0
@@ -209,6 +213,17 @@ export function RequestSlideOver({
         queryClient.invalidateQueries({ queryKey: ['feature-request', requestId] })
         queryClient.invalidateQueries({ queryKey: ['feature-requests', workspaceSlug] })
 
+        // Celebrate shipped features with confetti
+        if (newStatus === 'shipped') {
+            const end = Date.now() + 600
+            const frame = () => {
+                confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } })
+                confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } })
+                if (Date.now() < end) requestAnimationFrame(frame)
+            }
+            frame()
+        }
+
             // Fire-and-forget email notification to the requester
             ; (async () => {
                 try {
@@ -242,7 +257,6 @@ export function RequestSlideOver({
         if (!comment.trim() || !currentUser || !requestId) return
         const commentContent = comment.trim()
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await supabaseRaw.from('comments').insert({
             feature_request_id: requestId,
             user_id: currentUser.id,
@@ -325,8 +339,8 @@ export function RequestSlideOver({
                     <a href={data.url} target="_blank" rel="noopener noreferrer" className="underline text-primary">View →</a>
                 </span>
             )
-        } catch (e: any) {
-            toast.error(`Push to ${provider} failed: ${e.message}`)
+        } catch (e: unknown) {
+            toast.error(`Push to ${provider} failed: ${e instanceof Error ? e.message : 'Unknown error'}`)
         } finally {
             setPushing(null)
         }
@@ -342,11 +356,6 @@ export function RequestSlideOver({
         document.addEventListener('mousedown', handleClick)
         return () => document.removeEventListener('mousedown', handleClick)
     }, [])
-
-    const getInitials = (name: string | null) => {
-        if (!name) return '?'
-        return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
-    }
 
     const status = request?.status as FeatureStatus
     const statusConfig = status ? STATUS_CONFIG[status] : null
@@ -554,8 +563,8 @@ export function RequestSlideOver({
                                                     const data = await res.json()
                                                     if (data.error) throw new Error(data.error)
                                                     setAiSuggestion(data.suggestion)
-                                                } catch (e: any) {
-                                                    toast.error(`AI suggest failed: ${e.message}`)
+                                                } catch (e: unknown) {
+                                                    toast.error(`AI suggest failed: ${e instanceof Error ? e.message : 'Unknown error'}`)
                                                 } finally {
                                                     setAiLoading(false)
                                                 }

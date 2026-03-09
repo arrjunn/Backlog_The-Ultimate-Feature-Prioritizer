@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, createContext, useContext } from 'react'
+import { useState, useRef, useCallback, createContext, useContext } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { WorkspaceSidebar, WorkspaceTopbar } from '@/components/features/workspace/WorkspaceSidebar'
+import { WorkspaceSidebar, CommandBar } from '@/components/features/workspace/WorkspaceSidebar'
 import { OnlinePresenceAvatars } from '@/components/features/workspace/OnlinePresenceAvatars'
+import { CommandPalette } from '@/components/features/workspace/CommandPalette'
 import { Profile, Workspace, WorkspaceMember } from '@/types/database.types'
 import { cn } from '@/lib/utils/cn'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -52,7 +53,19 @@ export default function WorkspaceLayoutClient({
     slug: string
     children: React.ReactNode
 }) {
-    const [sidebarOpen, setSidebarOpen] = useState(false)
+    const [railExpanded, setRailExpanded] = useState(false)
+    const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    const handleMouseEnter = useCallback(() => {
+        if (hoverTimer.current) clearTimeout(hoverTimer.current)
+        hoverTimer.current = setTimeout(() => setRailExpanded(true), 250)
+    }, [])
+
+    const handleMouseLeave = useCallback(() => {
+        if (hoverTimer.current) clearTimeout(hoverTimer.current)
+        hoverTimer.current = setTimeout(() => setRailExpanded(false), 300)
+    }, [])
+
     const [searchQuery, setSearchQuery] = useState('')
     const [showNewRequestModal, setShowNewRequestModal] = useState(false)
     const [activeFramework, setActiveFramework] = useState('rice')
@@ -61,16 +74,12 @@ export default function WorkspaceLayoutClient({
     const { data: profile, isLoading: profileLoading } = useQuery({
         queryKey: ['profile'],
         queryFn: async () => {
-            let { data: { session } } = await supabase.auth.getSession()
-            if (!session) {
-                const { data: refreshed } = await supabase.auth.refreshSession()
-                session = refreshed.session
-            }
-            if (!session?.user) return null
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return null
             const { data } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('id', session.user.id)
+                .eq('id', user.id)
                 .single()
             return data as Profile | null
         },
@@ -98,16 +107,12 @@ export default function WorkspaceLayoutClient({
         queryKey: ['workspace-member', slug],
         enabled: !!workspace && !!profile,
         queryFn: async () => {
-            let { data: { session } } = await supabase.auth.getSession()
-            if (!session) {
-                const { data: refreshed } = await supabase.auth.refreshSession()
-                session = refreshed.session
-            }
-            if (!session?.user || !workspace) return null
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user || !workspace) return null
             const { data } = await supabase
                 .from('workspace_members')
                 .select('*')
-                .match({ user_id: session.user.id, workspace_id: workspace.id })
+                .match({ user_id: user.id, workspace_id: workspace.id })
                 .single()
             return data as WorkspaceMember | null
         },
@@ -140,7 +145,7 @@ export default function WorkspaceLayoutClient({
                     </div>
                     <h1 className="text-xl font-bold mb-2">Workspace not found</h1>
                     <p className="text-muted-foreground text-sm mb-6">
-                        The workspace <strong>{slug}</strong> doesn't exist or you don't have access to it.
+                        The workspace <strong>{slug}</strong> doesn&apos;t exist or you don&apos;t have access to it.
                     </p>
                     <Button asChild>
                         <Link href="/dashboard">Back to Dashboard</Link>
@@ -167,39 +172,33 @@ export default function WorkspaceLayoutClient({
             }}
         >
             <div className="flex h-screen overflow-hidden bg-background">
-                {/* Mobile sidebar overlay */}
-                {sidebarOpen && (
-                    <div
-                        className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-                        onClick={() => setSidebarOpen(false)}
-                    />
-                )}
-
-                {/* Sidebar */}
+                {/* Icon Rail Sidebar */}
                 <aside
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
                     className={cn(
-                        'fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transition-transform duration-300 lg:static lg:translate-x-0',
-                        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                        'hidden lg:flex flex-col h-full bg-card border-r border-border shrink-0 z-30 overflow-hidden',
+                        railExpanded ? 'w-56 shadow-lg' : 'w-12'
                     )}
+                    style={{ transition: 'width 350ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 350ms ease' }}
                 >
                     <WorkspaceSidebar
                         slug={slug}
                         workspace={workspace || null}
                         profile={profile || null}
-                        onClose={() => setSidebarOpen(false)}
+                        expanded={railExpanded}
                     />
                 </aside>
 
                 {/* Main content */}
                 <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                    <WorkspaceTopbar
+                    <CommandBar
                         slug={slug}
                         workspace={workspace || null}
                         isAdmin={isAdmin}
                         onNewRequest={() => setShowNewRequestModal(true)}
                         searchQuery={searchQuery}
                         onSearchChange={setSearchQuery}
-                        onMenuClick={() => setSidebarOpen(true)}
                         presenceSlot={
                             <OnlinePresenceAvatars
                                 workspaceId={workspace?.id}
@@ -213,6 +212,7 @@ export default function WorkspaceLayoutClient({
                         {children}
                     </main>
                 </div>
+                <CommandPalette />
             </div>
         </WorkspaceContext.Provider>
     )

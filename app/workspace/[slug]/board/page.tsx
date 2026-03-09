@@ -21,8 +21,10 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Heart, Tag, GripVertical, Package, Inbox } from 'lucide-react'
+import confetti from 'canvas-confetti'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { createUntypedClient } from '@/lib/supabase/untyped-client'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RequestModal } from '@/components/features/requests/RequestModal'
 import { RequestSlideOver } from '@/components/features/requests/RequestSlideOver'
@@ -30,7 +32,6 @@ import { STATUS_CONFIG, FeatureStatus } from '@/lib/utils/rice'
 import { FeatureRequest, Profile } from '@/types/database.types'
 import { cn } from '@/lib/utils/cn'
 import { useWorkspace } from '../WorkspaceLayoutClient'
-import { useScrollReveal } from '@/hooks/useAnimations'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ActiveFrameworkBadge } from '@/components/features/frameworks/scores/ActiveFrameworkBadge'
@@ -66,21 +67,23 @@ function KanbanCard({
         <div
             ref={setNodeRef}
             style={style}
+            {...attributes}
+            {...listeners}
             className={cn(
-                'bg-card rounded-xl border border-border p-3.5 group shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-200',
+                'bg-card rounded-xl border border-border p-3.5 group shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-grab active:cursor-grabbing',
                 isDragging && 'opacity-30 ring-2 ring-primary'
             )}
         >
             <div className="flex items-start gap-2">
-                <button
-                    {...attributes}
-                    {...listeners}
-                    className="mt-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted cursor-grab active:cursor-grabbing shrink-0"
-                >
+                <div className="mt-0.5 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
                     <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-                <div className="flex-1 min-w-0" onClick={onClick}>
-                    <p className="text-sm font-medium leading-tight mb-2 line-clamp-2 cursor-pointer hover:text-primary transition-colors">
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p
+                        className="text-sm font-medium leading-tight mb-2 line-clamp-2 cursor-pointer hover:text-primary hover:underline underline-offset-2 transition-colors"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={onClick}
+                    >
                         {request.title}
                     </p>
 
@@ -108,6 +111,9 @@ function KanbanCard({
                                     {tag}
                                 </span>
                             ))}
+                            {request.tags.length > 3 && (
+                                <span className="text-[10px] text-muted-foreground self-center" title={request.tags.slice(3).join(', ')}>+{request.tags.length - 3}</span>
+                            )}
                         </div>
                     )}
                 </div>
@@ -186,12 +192,12 @@ const BOARD_COLUMNS: { status: FeatureStatus; config: typeof STATUS_CONFIG[Featu
 
 export default function BoardPage() {
     const { slug } = useParams<{ slug: string }>()
-    const { workspace, profile, isAdmin, searchQuery, showNewRequestModal, setShowNewRequestModal, activeFramework } = useWorkspace()
-    useScrollReveal()
+    const { workspace, profile, isAdmin, isViewer, searchQuery, showNewRequestModal, setShowNewRequestModal, activeFramework } = useWorkspace()
     const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null)
     const [activeRequest, setActiveRequest] = useState<RequestWithDetails | null>(null)
     const [showShipped, setShowShipped] = useState(false)
     const supabase = createClient()
+    const supabaseRaw = createUntypedClient()
     const queryClient = useQueryClient()
 
     const sensors = useSensors(
@@ -226,7 +232,8 @@ export default function BoardPage() {
             })
             .subscribe()
         return () => { supabase.removeChannel(channel) }
-    }, [workspace, supabase, queryClient, slug])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workspace?.id, slug])
 
     const handleDragStart = (event: DragStartEvent) => {
         const req = requests?.find((r) => r.id === event.active.id)
@@ -254,15 +261,20 @@ export default function BoardPage() {
         const draggedCard = requests?.find((r) => r.id === active.id)
         if (!draggedCard || !newStatus || draggedCard.status === newStatus) return
 
+        // Viewers cannot change status
+        if (isViewer) {
+            toast.error('Viewers cannot change request status')
+            return
+        }
+
         // Optimistic update
         queryClient.setQueryData(['feature-requests', slug], (old: RequestWithDetails[] | undefined) =>
             old?.map((r) => r.id === draggedCard.id ? { ...r, status: newStatus! } : r) || []
         )
 
-        const { error } = await supabase
+        const { error } = await supabaseRaw
             .from('feature_requests')
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .update({ status: newStatus } as unknown as never)
+            .update({ status: newStatus })
             .eq('id', draggedCard.id)
 
         if (error) {
@@ -270,6 +282,15 @@ export default function BoardPage() {
             queryClient.invalidateQueries({ queryKey: ['feature-requests', slug] })
         } else {
             toast.success(`Moved to ${STATUS_CONFIG[newStatus].label}`)
+            if (newStatus === 'shipped') {
+                const end = Date.now() + 600
+                const frame = () => {
+                    confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } })
+                    confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } })
+                    if (Date.now() < end) requestAnimationFrame(frame)
+                }
+                frame()
+            }
         }
     }
 

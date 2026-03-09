@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import {
@@ -23,8 +23,8 @@ import { RequestSlideOver } from '@/components/features/requests/RequestSlideOve
 import { STATUS_CONFIG, FeatureStatus, formatRelativeDate } from '@/lib/utils/rice'
 import { FeatureRequest, Profile } from '@/types/database.types'
 import { cn } from '@/lib/utils/cn'
+import { getInitials } from '@/lib/utils/shared'
 import { useWorkspace } from '../WorkspaceLayoutClient'
-import { useScrollReveal } from '@/hooks/useAnimations'
 
 type SortOption = 'active_score' | 'vote_count' | 'created_at'
 type SortDir = 'asc' | 'desc'
@@ -62,7 +62,6 @@ function getFrameworkScoreValue(request: Partial<FeatureRequest>, frameworkId: s
 export default function BacklogPage() {
     const { slug } = useParams<{ slug: string }>()
     const { workspace, profile, isAdmin, searchQuery, showNewRequestModal, setShowNewRequestModal, activeFramework } = useWorkspace()
-    useScrollReveal()
     const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null)
     const [sortBy, setSortBy] = useState<SortOption>('active_score')
     const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -99,7 +98,8 @@ export default function BacklogPage() {
             })
             .subscribe()
         return () => { supabase.removeChannel(channel) }
-    }, [workspace, supabase, queryClient, slug])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workspace?.id, slug])
 
     const currentUserId = profile?.id
 
@@ -111,7 +111,7 @@ export default function BacklogPage() {
         return Array.from(set).sort()
     }, [requests])
 
-    const filteredAndSorted = requests
+    const filteredAndSorted = useMemo(() => requests
         ? requests
             .filter((r) => {
                 if (filterStatus !== 'all' && r.status !== filterStatus) return false
@@ -159,7 +159,7 @@ export default function BacklogPage() {
                 }
                 return sortDir === 'desc' ? bVal - aVal : aVal - bVal
             })
-        : []
+        : [], [requests, filterStatus, searchQuery, filterTags, activeFramework, sortBy, sortDir])
 
     const toggleSort = (col: SortOption) => {
         if (sortBy === col) {
@@ -168,11 +168,6 @@ export default function BacklogPage() {
             setSortBy(col)
             setSortDir('desc')
         }
-    }
-
-    const getInitials = (name: string | null) => {
-        if (!name) return '?'
-        return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     }
 
     // CSV export
@@ -203,7 +198,8 @@ export default function BacklogPage() {
         a.href = url
         a.download = `backlog-${slug}-${new Date().toISOString().slice(0, 10)}.csv`
         a.click()
-        URL.revokeObjectURL(url)
+        // Delay revocation to ensure the browser has started the download
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
 
     return (
@@ -282,15 +278,15 @@ export default function BacklogPage() {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b border-border bg-muted/30">
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider min-w-[280px]">
+                                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider min-w-[280px]">
                                     Title
                                 </th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                                     Status
                                 </th>
 
                                 <th
-                                    className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
+                                    className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
                                     onClick={() => toggleSort('vote_count')}
                                 >
                                     <span className="flex items-center gap-1">
@@ -298,15 +294,15 @@ export default function BacklogPage() {
                                         {sortBy === 'vote_count' ? (
                                             sortDir === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
                                         ) : (
-                                            <ArrowUpDown className="h-3 w-3 opacity-40" />
+                                            <ArrowUpDown className="h-3 w-3 opacity-30" />
                                         )}
                                     </span>
                                 </th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                                     Submitted By
                                 </th>
                                 <th
-                                    className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
+                                    className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
                                     onClick={() => toggleSort('created_at')}
                                 >
                                     <span className="flex items-center gap-1">
@@ -314,12 +310,12 @@ export default function BacklogPage() {
                                         {sortBy === 'created_at' ? (
                                             sortDir === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
                                         ) : (
-                                            <ArrowUpDown className="h-3 w-3 opacity-40" />
+                                            <ArrowUpDown className="h-3 w-3 opacity-30" />
                                         )}
                                     </span>
                                 </th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tags</th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Frameworks</th>
+                                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Tags</th>
+                                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Frameworks</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -337,7 +333,7 @@ export default function BacklogPage() {
                                 ))
                             ) : filteredAndSorted.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-16 text-center">
+                                    <td colSpan={7} className="px-4 py-16 text-center">
                                         <div className="flex flex-col items-center gap-3 text-muted-foreground">
                                             <Inbox className="h-12 w-12 opacity-30" />
                                             <div>
@@ -360,7 +356,7 @@ export default function BacklogPage() {
                                     return (
                                         <tr
                                             key={req.id}
-                                            className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
+                                            className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors duration-150"
                                             onClick={() => setSelectedRequestId(req.id)}
                                         >
                                             <td className="px-4 py-3">
@@ -396,32 +392,32 @@ export default function BacklogPage() {
                                                         </span>
                                                     ))}
                                                     {req.tags && req.tags.length > 2 && (
-                                                        <span className="text-xs text-muted-foreground">+{req.tags.length - 2}</span>
+                                                        <span className="text-[11px] text-muted-foreground" title={req.tags.slice(2).join(', ')}>+{req.tags.length - 2}</span>
                                                     )}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3">
-                                                <div className="flex gap-1 flex-wrap">
+                                                <div className="flex gap-1.5 flex-wrap">
                                                     {req.rice_score != null && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">RICE {req.rice_score.toFixed(0)}</span>
+                                                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">RICE {req.rice_score.toFixed(0)}</span>
                                                     )}
                                                     {req.ice_score != null && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">ICE {req.ice_score.toFixed(0)}</span>
+                                                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">ICE {req.ice_score.toFixed(0)}</span>
                                                     )}
                                                     {req.moscow_category != null && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400">MoSCoW</span>
+                                                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400">MoSCoW</span>
                                                     )}
                                                     {req.jtbd_opportunity_score != null && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-500/10 text-orange-600 dark:text-orange-400">JTBD {req.jtbd_opportunity_score.toFixed(0)}</span>
+                                                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-orange-500/10 text-orange-600 dark:text-orange-400">JTBD {req.jtbd_opportunity_score.toFixed(0)}</span>
                                                     )}
                                                     {req.kano_category != null && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-pink-500/10 text-pink-600 dark:text-pink-400">Kano</span>
+                                                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-pink-500/10 text-pink-600 dark:text-pink-400">Kano</span>
                                                     )}
                                                     {req.ie_quadrant != null && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-500/10 text-teal-600 dark:text-teal-400">I/E</span>
+                                                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-500/10 text-teal-600 dark:text-teal-400">I/E</span>
                                                     )}
                                                     {req.wsjf_score != null && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">WSJF {req.wsjf_score.toFixed(1)}</span>
+                                                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">WSJF {req.wsjf_score.toFixed(1)}</span>
                                                     )}
                                                 </div>
                                             </td>

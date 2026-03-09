@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
-import { Loader2, Trash2, UserMinus, Shield, User, Mail, Eye } from 'lucide-react'
+import { Loader2, Trash2, UserMinus, Shield, User, Mail, Eye, SunMoon } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { createUntypedClient } from '@/lib/supabase/untyped-client'
@@ -33,7 +33,10 @@ import { Badge } from '@/components/ui/badge'
 import { Profile, WorkspaceMember } from '@/types/database.types'
 import { useWorkspace } from '../WorkspaceLayoutClient'
 import { cn } from '@/lib/utils/cn'
+import { getInitials } from '@/lib/utils/shared'
 import { IntegrationsCard } from '@/components/features/integrations/IntegrationsCard'
+import { Switch } from '@/components/ui/switch'
+import { getAutoThemeEnabled, setAutoThemeEnabled } from '@/hooks/useAutoTheme'
 
 export default function SettingsPage() {
     const { slug } = useParams<{ slug: string }>()
@@ -46,6 +49,7 @@ export default function SettingsPage() {
     const [deleteConfirm, setDeleteConfirm] = useState('')
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false)
+    const [autoTheme, setAutoTheme] = useState(() => getAutoThemeEnabled())
     const supabase = createClient()
     const supabaseRaw = createUntypedClient()
     const queryClient = useQueryClient()
@@ -65,12 +69,8 @@ export default function SettingsPage() {
     const { data: currentUser } = useQuery({
         queryKey: ['current-user'],
         queryFn: async () => {
-            let { data: { session } } = await supabase.auth.getSession()
-            if (!session) {
-                const { data: refreshed } = await supabase.auth.refreshSession()
-                session = refreshed.session
-            }
-            return session?.user || null
+            const { data: { user } } = await supabase.auth.getUser()
+            return user
         },
     })
 
@@ -97,12 +97,46 @@ export default function SettingsPage() {
         setIsInviting(true)
 
         try {
-            // Send magic link to invite the user
-            await supabase.auth.signInWithOtp({ email: inviteEmail.trim() })
-            toast.info(`Invite sent to ${inviteEmail}. They'll receive a magic link to join.`)
+            // Look up the user by email in the profiles table
+            const { data: targetProfile } = await supabaseRaw
+                .from('profiles')
+                .select('id')
+                .eq('email', inviteEmail.trim().toLowerCase())
+                .single()
+
+            if (!targetProfile) {
+                toast.error('No user found with that email. They need to sign up first.')
+                return
+            }
+
+            // Check if they're already a member
+            const { data: existingMember } = await supabaseRaw
+                .from('workspace_members')
+                .select('id')
+                .match({ workspace_id: workspace.id, user_id: targetProfile.id })
+                .single()
+
+            if (existingMember) {
+                toast.info('This user is already a member of this workspace.')
+                return
+            }
+
+            // Add them as a member
+            const { error } = await supabaseRaw
+                .from('workspace_members')
+                .insert({
+                    workspace_id: workspace.id,
+                    user_id: targetProfile.id,
+                    role: 'member',
+                })
+
+            if (error) throw error
+
+            toast.success(`${inviteEmail} has been added to the workspace!`)
             setInviteEmail('')
+            refetchMembers()
         } catch {
-            toast.error('Failed to send invite')
+            toast.error('Failed to invite member')
         } finally {
             setIsInviting(false)
         }
@@ -159,8 +193,6 @@ export default function SettingsPage() {
         }
     }
 
-    const getInitials = (name: string | null) =>
-        name ? name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) : '?'
 
     return (
         <div className="p-4 sm:p-6 max-w-2xl space-y-6">
@@ -315,6 +347,38 @@ export default function SettingsPage() {
             {workspace && (
                 <IntegrationsCard workspaceId={workspace.id} isAdmin={isAdmin} />
             )}
+
+            {/* Preferences */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base">Preferences</CardTitle>
+                    <CardDescription>Personalize your experience</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
+                                <SunMoon className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium">Auto dark/light mode</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Switch theme based on time of day (light 6am–6pm)
+                                </p>
+                            </div>
+                        </div>
+                        <Switch
+                            checked={autoTheme}
+                            onCheckedChange={(checked) => {
+                                setAutoTheme(checked)
+                                setAutoThemeEnabled(checked)
+                                toast.success(checked ? 'Auto theme enabled' : 'Auto theme disabled')
+                                if (checked) window.location.reload()
+                            }}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Danger Zone */}
             {isAdmin && (

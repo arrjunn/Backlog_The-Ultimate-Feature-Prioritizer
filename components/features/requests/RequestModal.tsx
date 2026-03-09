@@ -114,15 +114,8 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
 
     const onSubmit = async (values: FormValues) => {
         try {
-            // getSession() reads from localStorage — never fails mid-session due to JWT refresh
-            let { data: { session } } = await supabase.auth.getSession()
-            // If session expired, try refreshing once before giving up
-            if (!session) {
-                const { data: refreshed } = await supabase.auth.refreshSession()
-                session = refreshed.session
-            }
-            if (!session?.user) throw new Error('Session expired — please refresh the page and try again')
-            const user = session.user
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) throw new Error('Session expired — please refresh the page and try again')
 
             const riceScore = calculateRiceScore(values.reach, values.impact, values.confidence, values.effort)
 
@@ -152,7 +145,6 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
                 ...(wsjfData ? { wsjf_user_business_value: wsjfData.wsjf_user_business_value, wsjf_time_criticality: wsjfData.wsjf_time_criticality, wsjf_risk_reduction: wsjfData.wsjf_risk_reduction, wsjf_job_size: wsjfData.wsjf_job_size } : {}),
             }
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { error } = await supabaseRaw.from('feature_requests').insert(payload)
             if (error) throw error
 
@@ -162,8 +154,9 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
             setTags([])
             setFrameworkData({})
             onClose()
-        } catch (err: any) {
-            toast.error(`Failed to create request: ${err.message || 'Unknown error'}`)
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Unknown error'
+            toast.error(`Failed to create request: ${message}`)
             console.error('Request creation error:', err)
         }
     }

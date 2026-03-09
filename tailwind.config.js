@@ -74,6 +74,14 @@ module.exports = {
                     from: { opacity: "0" },
                     to: { opacity: "1" },
                 },
+                "shimmer": {
+                    "0%": { transform: "translateX(-100%)" },
+                    "100%": { transform: "translateX(100%)" },
+                },
+                "presence-breathe": {
+                    "0%, 100%": { boxShadow: "0 0 0 0 rgba(34, 197, 94, 0.4)" },
+                    "50%": { boxShadow: "0 0 0 3px rgba(34, 197, 94, 0)" },
+                },
             },
             animation: {
                 "accordion-down": "accordion-down 0.2s ease-out",

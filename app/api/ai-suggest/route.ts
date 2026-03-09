@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authenticateApiRoute } from '@/lib/supabase/api-auth'
+import { getErrorMessage } from '@/lib/utils/shared'
 
 // ---------------------------------------------------------------------------
 // Rule-based AI suggestion engine
@@ -15,7 +17,6 @@ interface Keyword {
 }
 
 const KEYWORD_RULES: Keyword[] = [
-    // High reach + high impact
     { patterns: [/auth|login|sign.?in|sso|oauth|password/i], reach: 8, impact: 9, confidence: 80, effort: 7, tags: ['security', 'auth'] },
     { patterns: [/dashboard|overview|home.?page|landing/i], reach: 9, impact: 8, confidence: 80, effort: 6 },
     { patterns: [/search|filter|sort|find/i], reach: 9, impact: 7, confidence: 90, effort: 5 },
@@ -56,13 +57,10 @@ function analyzeText(text: string) {
         }
     }
 
-    // Text length signals complexity → higher effort
     if (text.length > 300) effort += 1
     if (text.length > 600) effort += 1
 
-    // Clamp values
     const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, Math.round(v)))
-    const avgDivisor = matchCount > 0 ? matchCount : 1
 
     return {
         reach: clamp(matchCount > 1 ? Math.round(reach / Math.max(matchCount - 1, 1)) : reach, 1, 10),
@@ -73,8 +71,8 @@ function analyzeText(text: string) {
     }
 }
 
-function buildReasoning(title: string, scores: ReturnType<typeof analyzeText>, framework: string): string {
-    const { reach, impact, effort } = scores
+function buildReasoning(title: string, scores: ReturnType<typeof analyzeText>): string {
+    const { impact, effort } = scores
     const complexity = effort >= 7 ? 'complex' : effort >= 4 ? 'moderate' : 'straightforward'
     const priority = impact >= 8 ? 'high-impact' : impact >= 5 ? 'medium-impact' : 'lower-impact'
     return `"${title.slice(0, 50)}" appears to be a ${priority}, ${complexity} feature based on its description keywords. Adjust scores based on your team's specific context.`
@@ -83,75 +81,45 @@ function buildReasoning(title: string, scores: ReturnType<typeof analyzeText>, f
 function getSuggestion(title: string, description: string, framework: string): Record<string, unknown> {
     const text = `${title} ${description}`.toLowerCase()
     const scores = analyzeText(text)
-    const reasoning = buildReasoning(title, scores, framework)
+    const reasoning = buildReasoning(title, scores)
 
     switch (framework) {
         case 'rice':
-            return {
-                reach: scores.reach,
-                impact: scores.impact,
-                confidence: Math.round(scores.confidence / 10) * 10, // round to nearest 10
-                effort: scores.effort,
-                reasoning,
-            }
+            return { reach: scores.reach, impact: scores.impact, confidence: Math.round(scores.confidence / 10) * 10, effort: scores.effort, reasoning }
         case 'ice':
-            return {
-                ice_impact: scores.impact,
-                ice_confidence: Math.min(10, Math.round(scores.confidence / 10)),
-                ice_ease: Math.max(1, 11 - scores.effort), // invert effort → ease
-                reasoning,
-            }
+            return { ice_impact: scores.impact, ice_confidence: Math.min(10, Math.round(scores.confidence / 10)), ice_ease: Math.max(1, 11 - scores.effort), reasoning }
         case 'moscow': {
             const score = (scores.impact * 2 + scores.reach) / 3
             const category = score >= 8 ? 'must_have' : score >= 6 ? 'should_have' : score >= 4 ? 'could_have' : 'wont_have'
-            return {
-                moscow_category: category,
-                moscow_rationale: reasoning,
-            }
+            return { moscow_category: category, moscow_rationale: reasoning }
         }
         case 'jtbd':
             return {
                 jtbd_importance: scores.impact,
-                jtbd_satisfaction: Math.max(1, 10 - scores.impact + 2), // low impact = high satisfaction gap
+                jtbd_satisfaction: Math.max(1, 10 - scores.impact + 2),
                 jtbd_job_statement: `When I use the product, I want to ${title.toLowerCase().replace(/^add |^create |^build |^implement /i, '')}, so I can achieve my goals more efficiently.`,
                 reasoning,
             }
         case 'kano': {
-            const categories = ['must_be', 'one_dimensional', 'attractive', 'indifferent']
+            const categories = ['must_be', 'one_dimensional', 'attractive', 'indifferent'] as const
             const idx = scores.impact >= 8 ? 0 : scores.impact >= 6 ? 1 : scores.reach >= 7 ? 2 : 3
-            return {
-                kano_category: categories[idx],
-                kano_functional_response: scores.impact >= 7 ? 'like' : 'neutral',
-                kano_dysfunctional_response: scores.impact >= 8 ? 'dislike' : 'neutral',
-                reasoning,
-            }
+            return { kano_category: categories[idx], kano_functional_response: scores.impact >= 7 ? 'like' : 'neutral', kano_dysfunctional_response: scores.impact >= 8 ? 'dislike' : 'neutral', reasoning }
         }
         case 'impact_effort': {
-            const quadrant =
-                scores.impact >= 6 && scores.effort <= 5 ? 'quick_win' :
-                    scores.impact >= 6 && scores.effort > 5 ? 'major_project' :
-                        scores.impact < 6 && scores.effort <= 5 ? 'fill_in' : 'thankless_task'
-            return {
-                ie_impact: scores.impact,
-                ie_effort: scores.effort,
-                ie_quadrant: quadrant,
-                reasoning,
-            }
+            const quadrant = scores.impact >= 6 && scores.effort <= 5 ? 'quick_win' : scores.impact >= 6 && scores.effort > 5 ? 'major_project' : scores.impact < 6 && scores.effort <= 5 ? 'fill_in' : 'thankless_task'
+            return { ie_impact: scores.impact, ie_effort: scores.effort, ie_quadrant: quadrant, reasoning }
         }
         case 'wsjf':
-            return {
-                wsjf_user_business_value: scores.impact,
-                wsjf_time_criticality: Math.min(10, Math.round(scores.reach * 0.8)),
-                wsjf_risk_reduction: Math.min(10, Math.round(scores.confidence / 10)),
-                wsjf_job_size: scores.effort,
-                reasoning,
-            }
+            return { wsjf_user_business_value: scores.impact, wsjf_time_criticality: Math.min(10, Math.round(scores.reach * 0.8)), wsjf_risk_reduction: Math.min(10, Math.round(scores.confidence / 10)), wsjf_job_size: scores.effort, reasoning }
         default:
             return { reasoning }
     }
 }
 
 export async function POST(req: NextRequest) {
+    const auth = await authenticateApiRoute()
+    if (auth.error) return auth.error
+
     try {
         const { title, description, framework } = await req.json()
 
@@ -161,7 +129,7 @@ export async function POST(req: NextRequest) {
 
         const suggestion = getSuggestion(title, description ?? '', framework)
         return NextResponse.json({ suggestion, framework })
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message ?? 'Unknown error' }, { status: 500 })
+    } catch (err: unknown) {
+        return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 })
     }
 }

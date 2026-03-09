@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Loader2, LogOut, ArrowRight, FolderOpen } from 'lucide-react'
+import { Plus, Loader2, LogOut, ArrowRight, ArrowLeft, FolderOpen, BarChart3, Heart, Package, MessageSquare } from 'lucide-react'
 import { WorkspaceAvatar } from '@/components/features/workspace/WorkspaceAvatar'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -24,7 +24,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useGlassNav, useScrollReveal } from '@/hooks/useAnimations'
+import { useGlassNav } from '@/hooks/useAnimations'
+import { getInitials } from '@/lib/utils/shared'
 
 export default function DashboardPage() {
     const router = useRouter()
@@ -36,36 +37,27 @@ export default function DashboardPage() {
     const [showCreateForm, setShowCreateForm] = useState(false)
 
     const navRef = useGlassNav()
-    useScrollReveal()
 
     const { data: profile, isLoading: profileLoading } = useQuery({
         queryKey: ['profile'],
         queryFn: async () => {
-            let { data: { session } } = await supabase.auth.getSession()
-            if (!session) {
-                const { data: refreshed } = await supabase.auth.refreshSession()
-                session = refreshed.session
-            }
-            if (!session?.user) throw new Error('Not authenticated')
-            const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
-            return data as unknown as Profile
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) throw new Error('Not authenticated')
+            const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+            return (data ?? null) as Profile | null
         },
     })
 
     const { data: workspaces, isLoading: workspacesLoading } = useQuery({
         queryKey: ['workspaces'],
         queryFn: async () => {
-            let { data: { session } } = await supabase.auth.getSession()
-            if (!session) {
-                const { data: refreshed } = await supabase.auth.refreshSession()
-                session = refreshed.session
-            }
-            if (!session?.user) throw new Error('Not authenticated')
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) throw new Error('Not authenticated')
             const { data } = await supabase
                 .from('workspace_members')
                 .select('workspace_id, workspaces(*)')
-                .eq('user_id', session.user.id)
-            return (data?.map((d: { workspaces: Workspace | null }) => d.workspaces).filter(Boolean) || []) as Workspace[]
+                .eq('user_id', user.id)
+            return (data?.map((d) => (d as { workspaces: Workspace | null }).workspaces).filter(Boolean) || []) as Workspace[]
         },
     })
 
@@ -76,7 +68,6 @@ export default function DashboardPage() {
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) throw new Error('Not authenticated')
             const slug = generateSlug(workspaceName)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data: workspace, error: workspaceError } = await supabaseRaw
                 .from('workspaces')
                 .insert({ name: workspaceName.trim(), slug, owner_id: user.id })
@@ -89,12 +80,59 @@ export default function DashboardPage() {
             queryClient.invalidateQueries({ queryKey: ['workspaces'] })
             toast.success('Workspace created!')
             router.push(`/workspace/${slug}/backlog`)
-        } catch (err: any) {
-            toast.error(err.message || 'Failed to create workspace')
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : 'Failed to create workspace')
         } finally {
             setIsCreating(false)
         }
     }
+
+    // Personal stats across all workspaces
+    const { data: stats } = useQuery({
+        queryKey: ['dashboard-stats'],
+        enabled: !!workspaces && workspaces.length > 0,
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return null
+            const wsIds = workspaces!.map((w) => w.id)
+
+            // Total requests across workspaces
+            const { count: totalRequests } = await supabase
+                .from('feature_requests')
+                .select('*', { count: 'exact', head: true })
+                .in('workspace_id', wsIds)
+
+            // Shipped this month
+            const monthStart = new Date()
+            monthStart.setDate(1)
+            monthStart.setHours(0, 0, 0, 0)
+            const { count: shippedThisMonth } = await supabase
+                .from('feature_requests')
+                .select('*', { count: 'exact', head: true })
+                .in('workspace_id', wsIds)
+                .eq('status', 'shipped')
+                .gte('shipped_at', monthStart.toISOString())
+
+            // My votes
+            const { count: myVotes } = await supabase
+                .from('votes')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id)
+
+            // My comments
+            const { count: myComments } = await supabase
+                .from('comments')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id)
+
+            return {
+                totalRequests: totalRequests || 0,
+                shippedThisMonth: shippedThisMonth || 0,
+                myVotes: myVotes || 0,
+                myComments: myComments || 0,
+            }
+        },
+    })
 
     const handleLogout = async () => {
         await supabase.auth.signOut()
@@ -102,16 +140,14 @@ export default function DashboardPage() {
         router.refresh()
     }
 
-    const getInitials = (name: string | null) => {
-        if (!name) return '?'
-        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    }
-
     return (
         <div className="dash-root">
             {/* Topbar */}
             <header className="dash-nav" ref={navRef}>
-                <Link href="/" className="dash-logo">backlog</Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Link href="/" className="dash-back-btn"><ArrowLeft size={16} /></Link>
+                    <Link href="/" className="dash-logo">backlog</Link>
+                </div>
                 <div className="dash-nav-right">
                     <ThemeToggle className="dash-icon-btn" />
                     <DropdownMenu>
@@ -150,6 +186,26 @@ export default function DashboardPage() {
                     }
                     <p className="dash-sub">your workspaces and feature backlogs</p>
                 </div>
+
+                {/* Stats widgets */}
+                {stats && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                        {[
+                            { label: 'Total Requests', value: stats.totalRequests, icon: BarChart3, color: 'text-violet-500' },
+                            { label: 'Shipped This Month', value: stats.shippedThisMonth, icon: Package, color: 'text-green-500' },
+                            { label: 'Your Votes', value: stats.myVotes, icon: Heart, color: 'text-rose-500' },
+                            { label: 'Your Comments', value: stats.myComments, icon: MessageSquare, color: 'text-blue-500' },
+                        ].map((stat) => (
+                            <div key={stat.label} className="dash-stat-card">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <stat.icon className={`h-3.5 w-3.5 ${stat.color}`} />
+                                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{stat.label}</span>
+                                </div>
+                                <p className="text-2xl font-bold tabular-nums">{stat.value}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 <div className="dash-rule" />
 

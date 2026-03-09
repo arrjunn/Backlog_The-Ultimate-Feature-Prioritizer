@@ -53,7 +53,7 @@ export default function FrameworkGuidePage() {
             <div>
                 <h1 className="font-serif text-3xl font-bold tracking-tight mb-2">Prioritization Frameworks</h1>
                 <p className="text-muted-foreground text-sm max-w-2xl">
-                    Backlog supports 7 frameworks. Choose the right one for your team's context — or score the
+                    Backlog supports 7 frameworks. Choose the right one for your team&apos;s context — or score the
                     same request with multiple frameworks to cross-validate your intuition.
                 </p>
             </div>

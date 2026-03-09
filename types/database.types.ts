@@ -7,7 +7,6 @@ export type Json =
     | Json[]
 
 export type Database = {
-    PostgrestVersion: "12"
     public: {
         Tables: {
             profiles: {
@@ -32,6 +31,7 @@ export type Database = {
                     email?: string | null
                     created_at?: string
                 }
+                Relationships: []
             }
             workspaces: {
                 Row: {
@@ -58,29 +58,54 @@ export type Database = {
                     created_at?: string
                     active_framework?: string
                 }
+                Relationships: [
+                    {
+                        foreignKeyName: "workspaces_owner_id_fkey"
+                        columns: ["owner_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
             workspace_members: {
                 Row: {
                     id: string
                     workspace_id: string
                     user_id: string
-                    role: 'admin' | 'member'
+                    role: 'admin' | 'member' | 'viewer'
                     joined_at: string
                 }
                 Insert: {
                     id?: string
                     workspace_id: string
                     user_id: string
-                    role?: 'admin' | 'member'
+                    role?: 'admin' | 'member' | 'viewer'
                     joined_at?: string
                 }
                 Update: {
                     id?: string
                     workspace_id?: string
                     user_id?: string
-                    role?: 'admin' | 'member'
+                    role?: 'admin' | 'member' | 'viewer'
                     joined_at?: string
                 }
+                Relationships: [
+                    {
+                        foreignKeyName: "workspace_members_workspace_id_fkey"
+                        columns: ["workspace_id"]
+                        isOneToOne: false
+                        referencedRelation: "workspaces"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "workspace_members_user_id_fkey"
+                        columns: ["user_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
             feature_requests: {
                 Row: {
@@ -203,6 +228,22 @@ export type Database = {
                     wsjf_job_size?: number | null
                     wsjf_score?: number | null
                 }
+                Relationships: [
+                    {
+                        foreignKeyName: "feature_requests_workspace_id_fkey"
+                        columns: ["workspace_id"]
+                        isOneToOne: false
+                        referencedRelation: "workspaces"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "feature_requests_submitted_by_fkey"
+                        columns: ["submitted_by"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
             votes: {
                 Row: {
@@ -223,6 +264,22 @@ export type Database = {
                     user_id?: string
                     created_at?: string
                 }
+                Relationships: [
+                    {
+                        foreignKeyName: "votes_feature_request_id_fkey"
+                        columns: ["feature_request_id"]
+                        isOneToOne: false
+                        referencedRelation: "feature_requests"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "votes_user_id_fkey"
+                        columns: ["user_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
             comments: {
                 Row: {
@@ -246,11 +303,60 @@ export type Database = {
                     content?: string
                     created_at?: string
                 }
+                Relationships: [
+                    {
+                        foreignKeyName: "comments_feature_request_id_fkey"
+                        columns: ["feature_request_id"]
+                        isOneToOne: false
+                        referencedRelation: "feature_requests"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "comments_user_id_fkey"
+                        columns: ["user_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            workspace_integrations: {
+                Row: {
+                    id: string
+                    workspace_id: string
+                    provider: 'notion' | 'linear' | 'jira'
+                    config: Json
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    workspace_id: string
+                    provider: 'notion' | 'linear' | 'jira'
+                    config: Json
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    workspace_id?: string
+                    provider?: 'notion' | 'linear' | 'jira'
+                    config?: Json
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "workspace_integrations_workspace_id_fkey"
+                        columns: ["workspace_id"]
+                        isOneToOne: false
+                        referencedRelation: "workspaces"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
         }
-        Views: {}
-        Functions: {}
-        Enums: {}
+        Views: Record<string, never>
+        Functions: Record<string, never>
+        Enums: Record<string, never>
+        CompositeTypes: Record<string, never>
     }
 }
 

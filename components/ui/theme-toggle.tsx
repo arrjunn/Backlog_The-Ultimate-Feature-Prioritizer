@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import { setManualTheme } from '@/hooks/useAutoTheme'
 
 interface ThemeToggleProps {
     /** CSS class for the wrapper button */
@@ -32,13 +33,13 @@ export function ThemeToggle({ className = '', showLabel = false, size = 15 }: Th
 
     return (
         <button
-            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            onClick={() => { setManualTheme(); setTheme(isDark ? 'light' : 'dark') }}
             className={`theme-toggle ${className}`}
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             title={isDark ? 'Light mode' : 'Dark mode'}
         >
             {isDark ? <Sun size={size} /> : <Moon size={size} />}
-            {showLabel && <span className="theme-toggle__label">{isDark ? 'Light mode' : 'Dark mode'}</span>}
+            {showLabel && <span className="theme-toggle__label whitespace-nowrap">{isDark ? 'Light mode' : 'Dark mode'}</span>}
         </button>
     )
 }

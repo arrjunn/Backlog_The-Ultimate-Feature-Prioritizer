@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authenticateApiRoute } from '@/lib/supabase/api-auth'
+import { getErrorMessage } from '@/lib/utils/shared'
 
 export async function POST(req: NextRequest) {
+    // Auth check
+    const auth = await authenticateApiRoute()
+    if (auth.error) return auth.error
+
     try {
         const { apiKey, teamId, request } = await req.json()
 
@@ -37,8 +43,8 @@ export async function POST(req: NextRequest) {
         })
 
         if (!res.ok) {
-            const err = await res.text()
-            return NextResponse.json({ error: err }, { status: res.status })
+            const errText = await res.text()
+            return NextResponse.json({ error: errText }, { status: res.status })
         }
 
         const json = await res.json()
@@ -48,8 +54,8 @@ export async function POST(req: NextRequest) {
 
         const issue = json.data?.issueCreate?.issue
         return NextResponse.json({ url: issue?.url, id: issue?.id })
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message ?? 'Unknown error' }, { status: 500 })
+    } catch (err: unknown) {
+        return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 })
     }
 }
 

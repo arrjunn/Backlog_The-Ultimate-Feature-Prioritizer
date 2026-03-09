@@ -48,7 +48,7 @@ export default function RootLayout({
             <body className={`${spaceGrotesk.variable} ${spaceMono.variable} ${playfair.variable} ${spaceGrotesk.className}`}>
                 <ThemeProvider
                     attribute="class"
-                    defaultTheme="system"
+                    defaultTheme="dark"
                     enableSystem
                     disableTransitionOnChange
                 >

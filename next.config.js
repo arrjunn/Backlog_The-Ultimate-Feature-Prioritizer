@@ -1,12 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     typescript: {
-        // Supabase generic type overloads cause false positives in strict mode
-        // The actual runtime types are correct and fully typed
+        // PostgREST v12 generic overloads in @supabase/supabase-js v2 collapse
+        // .insert()/.update() types to `never` with manually-authored DB types.
+        // Regenerate types with `npx supabase gen types typescript` to fully resolve.
         ignoreBuildErrors: true,
-    },
-    eslint: {
-        ignoreDuringBuilds: true,
     },
     images: {
         remotePatterns: [

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authenticateApiRoute } from '@/lib/supabase/api-auth'
+import { getErrorMessage } from '@/lib/utils/shared'
 
 export async function POST(req: NextRequest) {
+    const auth = await authenticateApiRoute()
+    if (auth.error) return auth.error
+
     try {
         const { jiraUrl, email, apiToken, projectKey, request } = await req.json()
 
@@ -9,7 +14,7 @@ export async function POST(req: NextRequest) {
         }
 
         const base = jiraUrl.replace(/\/$/, '')
-        const auth = Buffer.from(`${email}:${apiToken}`).toString('base64')
+        const authHeader = Buffer.from(`${email}:${apiToken}`).toString('base64')
 
         const body: Record<string, unknown> = {
             fields: {
@@ -27,7 +32,7 @@ export async function POST(req: NextRequest) {
         const res = await fetch(`${base}/rest/api/3/issue`, {
             method: 'POST',
             headers: {
-                Authorization: `Basic ${auth}`,
+                Authorization: `Basic ${authHeader}`,
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
             },
@@ -43,8 +48,8 @@ export async function POST(req: NextRequest) {
         const issue = await res.json()
         const url = `${base}/browse/${issue.key}`
         return NextResponse.json({ url, id: issue.key })
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message ?? 'Unknown error' }, { status: 500 })
+    } catch (err: unknown) {
+        return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 })
     }
 }
 
@@ -53,10 +58,7 @@ function textNode(text: string) {
 }
 
 function paragraph(...texts: string[]): unknown {
-    return {
-        type: 'paragraph',
-        content: texts.map(t => ({ type: 'text', text: t })),
-    }
+    return { type: 'paragraph', content: texts.map(t => ({ type: 'text', text: t })) }
 }
 
 function buildJiraDoc(request: Record<string, unknown>): unknown {
@@ -67,7 +69,6 @@ function buildJiraDoc(request: Record<string, unknown>): unknown {
         content.push(paragraph(''))
     }
 
-    // Scores section
     const scoreLines: string[] = []
     if (request.rice_score != null) scoreLines.push(`RICE Score: ${request.rice_score}`)
     if (request.ice_score != null) scoreLines.push(`ICE Score: ${request.ice_score}`)
@@ -76,18 +77,8 @@ function buildJiraDoc(request: Record<string, unknown>): unknown {
     if ((request.tags as string[])?.length) scoreLines.push(`Tags: ${(request.tags as string[]).join(', ')}`)
 
     if (scoreLines.length > 0) {
-        content.push({
-            type: 'heading',
-            attrs: { level: 3 },
-            content: [textNode('Framework Scores')],
-        })
-        content.push({
-            type: 'bulletList',
-            content: scoreLines.map(line => ({
-                type: 'listItem',
-                content: [paragraph(line)],
-            })),
-        })
+        content.push({ type: 'heading', attrs: { level: 3 }, content: [textNode('Framework Scores')] })
+        content.push({ type: 'bulletList', content: scoreLines.map(line => ({ type: 'listItem', content: [paragraph(line)] })) })
     }
 
     content.push(paragraph('---'))

@@ -25,7 +25,6 @@ import { STATUS_CONFIG } from '@/lib/utils/rice'
 import { FRAMEWORKS } from '@/lib/utils/frameworks'
 import { FeatureRequest } from '@/types/database.types'
 import { useWorkspace } from '../WorkspaceLayoutClient'
-import { useScrollReveal } from '@/hooks/useAnimations'
 import { cn } from '@/lib/utils/cn'
 
 const COLORS = ['#8b5cf6', '#f97316', '#3b82f6', '#6b7280', '#22c55e']
@@ -35,25 +34,27 @@ function StatCard({
     value,
     icon: Icon,
     color,
+    accentColor,
 }: {
     title: string
     value: number | string
     icon: React.ElementType
     color: string
+    accentColor?: string
 }) {
     return (
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden group hover:border-primary/20 transition-colors">
             <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                     <div>
                         <p className="text-sm text-muted-foreground mb-1">{title}</p>
                         <p className="text-3xl font-bold">{value}</p>
                     </div>
-                    <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center', color)}>
+                    <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110', color)}>
                         <Icon className="h-5 w-5" />
                     </div>
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-purple-600 opacity-20" />
+                <div className={cn('absolute bottom-0 left-0 right-0 h-1 opacity-20', accentColor || 'bg-gradient-to-r from-violet-500 to-purple-600')} />
             </CardContent>
         </Card>
     )
@@ -62,7 +63,6 @@ function StatCard({
 export default function InsightsPage() {
     const { slug } = useParams<{ slug: string }>()
     const { workspace } = useWorkspace()
-    useScrollReveal()
     const supabase = createClient()
 
     const { data: requests, isLoading } = useQuery({
@@ -163,24 +163,28 @@ export default function InsightsPage() {
                     value={totalRequests}
                     icon={BarChart3}
                     color="bg-violet-500/10 text-violet-500"
+                    accentColor="bg-violet-500"
                 />
                 <StatCard
                     title="Total Votes"
                     value={totalVotes}
                     icon={Star}
                     color="bg-orange-500/10 text-orange-500"
+                    accentColor="bg-orange-500"
                 />
                 <StatCard
                     title="Shipped This Month"
                     value={shippedThisMonth}
                     icon={Package}
                     color="bg-green-500/10 text-green-500"
+                    accentColor="bg-green-500"
                 />
                 <StatCard
                     title="Avg Framework Coverage"
                     value={`${avgCoverage}%`}
                     icon={Layers}
                     color="bg-blue-500/10 text-blue-500"
+                    accentColor="bg-blue-500"
                 />
             </div>
 
@@ -199,7 +203,7 @@ export default function InsightsPage() {
                         ) : (
                             <ResponsiveContainer width="100%" height={280}>
                                 <BarChart data={top10} layout="vertical" margin={{ left: 16 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
                                     <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                                     <YAxis
                                         type="category"
@@ -275,7 +279,7 @@ export default function InsightsPage() {
                     <CardContent>
                         <ResponsiveContainer width="100%" height={240}>
                             <LineChart data={last30} margin={{ left: -8 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.2)" />
                                 <XAxis
                                     dataKey="date"
                                     tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}

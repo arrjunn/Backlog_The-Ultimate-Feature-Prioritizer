@@ -65,9 +65,15 @@ export default function ForgotPasswordPage() {
                 <ThemeToggle />
             </div>
             <div className="auth-solo-card">
+                <div className="auth-terminal-bar">
+                    <span className="lp-terminal-dot" style={{ background: '#ff5f57' }} />
+                    <span className="lp-terminal-dot" style={{ background: '#febc2e' }} />
+                    <span className="lp-terminal-dot" style={{ background: '#28c840' }} />
+                    <span className="auth-terminal-title">$ backlog reset-password</span>
+                </div>
                 <div className="auth-card-header">
                     <h1 className="auth-heading">reset your password.</h1>
-                    <p className="auth-subheading">enter your email and we'll send a link</p>
+                    <p className="auth-subheading">enter your email and we&apos;ll send a link</p>
                 </div>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="auth-form-fields">

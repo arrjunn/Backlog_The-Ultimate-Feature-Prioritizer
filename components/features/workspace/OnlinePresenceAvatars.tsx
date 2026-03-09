@@ -48,14 +48,15 @@ export function OnlinePresenceAvatars({ workspaceId, userId, fullName, avatarUrl
                         key={user.userId}
                         className="relative group"
                     >
-                        <Avatar className="h-7 w-7 border-2 border-card ring-1 ring-green-500/60">
+                        <Avatar className="h-7 w-7 border-2 border-card ring-1 ring-green-500/60 animate-[presence-breathe_3s_ease-in-out_infinite]">
                             <AvatarImage src={user.avatarUrl ?? ''} />
                             <AvatarFallback className="text-[10px] font-semibold bg-gradient-to-br from-violet-500 to-purple-600 text-white">
                                 {getInitials(user.fullName)}
                             </AvatarFallback>
                         </Avatar>
-                        {/* Online dot */}
+                        {/* Online dot with pulse */}
                         <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border border-card" />
+                        <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 animate-ping opacity-75" />
                         {/* Tooltip */}
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-md bg-popover border border-border text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-lg">
                             <span className="font-medium">{user.fullName ?? 'Anonymous'}</span>

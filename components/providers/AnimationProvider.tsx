@@ -2,12 +2,49 @@
 
 import { useEffect, useRef, useState, ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import { useCursorGlow } from '@/hooks/useAnimations'
+import { useAutoTheme } from '@/hooks/useAutoTheme'
 
 // ─── Cursor Dot (brutalist) ───
 function CursorDot() {
-    useCursorGlow()
-    return <div className="cursor-glow" aria-hidden="true" />
+    const dotRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const el = dotRef.current
+        if (!el) return
+        if (typeof window === 'undefined') return
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+        const root = document.documentElement
+        let raf = 0
+        let mx = 0, my = 0
+        let cx = 0, cy = 0
+
+        const onMove = (e: MouseEvent) => {
+            mx = e.clientX
+            my = e.clientY
+        }
+
+        const loop = () => {
+            cx += (mx - cx) * 0.35
+            cy += (my - cy) * 0.35
+            // Move the dot element directly for reliable rendering
+            el.style.transform = `translate(${cx - 8}px, ${cy - 8}px)`
+            // Also set CSS vars for the card glow effect
+            root.style.setProperty('--cursor-x', `${cx}px`)
+            root.style.setProperty('--cursor-y', `${cy}px`)
+            raf = requestAnimationFrame(loop)
+        }
+
+        window.addEventListener('mousemove', onMove, { passive: true })
+        raf = requestAnimationFrame(loop)
+
+        return () => {
+            window.removeEventListener('mousemove', onMove)
+            cancelAnimationFrame(raf)
+        }
+    }, [])
+
+    return <div ref={dotRef} className="cursor-glow" aria-hidden="true" />
 }
 
 // ─── Page Transition Wrapper ───
@@ -70,6 +107,7 @@ function PageTransition({ children }: { children: ReactNode }) {
 // ─── Main Provider ───
 export function AnimationProvider({ children }: { children: ReactNode }) {
     const [isMobile, setIsMobile] = useState(false)
+    useAutoTheme()
 
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 768px)')
