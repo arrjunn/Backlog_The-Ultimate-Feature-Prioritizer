@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                from: 'Backlog <onboarding@resend.dev>',
+                from: process.env.EMAIL_FROM || 'Backlog <onboarding@resend.dev>',
                 to,
                 subject,
                 html,
