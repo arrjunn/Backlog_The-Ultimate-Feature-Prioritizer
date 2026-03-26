@@ -4,6 +4,14 @@ import { escapeHtml } from '@/lib/utils/shared'
 
 const RESEND_URL = 'https://api.resend.com/emails'
 
+function markdownToHtml(text: string): string {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>[\s\S]*<\/li>)/, '<ul style="padding-left:16px;margin:8px 0;">$1</ul>')
+        .replace(/\n/g, '<br>')
+}
+
 export async function GET(req: NextRequest) {
     const cronSecret = process.env.CRON_SECRET
     const authHeader = req.headers.get('authorization')
@@ -122,8 +130,9 @@ Top requests: ${(topRequests || []).map((r: any) => r.title).join(', ')}
                     console.error('Langflow error:', langflowRes.status)
                 } else {
                     const langflowData = await langflowRes.json()
-                    aiSummary = langflowData?.outputs?.[0]?.outputs?.[0]?.messages?.[0]?.message ||
+                    const raw = langflowData?.outputs?.[0]?.outputs?.[0]?.messages?.[0]?.message ||
                         langflowData?.outputs?.[0]?.outputs?.[0]?.results?.message?.text || ''
+                    aiSummary = markdownToHtml(raw)
                 }
             } catch (e) {
                 console.error('Langflow error:', e)
@@ -162,7 +171,7 @@ Top requests: ${(topRequests || []).map((r: any) => r.title).join(', ')}
           <div style="font-size:24px;font-weight:700;color:#f5f5f5;">${newVotes}</div>
           <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;">Votes</div>
         </td>
-        <td width="25%" style="padding:16px 8px;border:1px solid rgba(255,255,255,0.1);border-left:none;text-align:center;">
+        <td width="25%" style="padding:16px 8px 16px 8px;border:1px solid rgba(255,255,255,0.1);border-left:none;text-align:center;">
           <div style="font-size:24px;font-weight:700;color:#f5f5f5;">${newComments}</div>
           <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;">Comments</div>
         </td>
