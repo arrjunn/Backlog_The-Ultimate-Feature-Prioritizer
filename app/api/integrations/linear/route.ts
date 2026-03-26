@@ -33,6 +33,9 @@ export async function POST(req: NextRequest) {
             },
         }
 
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 15000)
+
         const res = await fetch('https://api.linear.app/graphql', {
             method: 'POST',
             headers: {
@@ -40,7 +43,9 @@ export async function POST(req: NextRequest) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ query: mutation, variables }),
+            signal: controller.signal,
         })
+        clearTimeout(timeout)
 
         if (!res.ok) {
             const errText = await res.text()

@@ -40,6 +40,9 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 15000)
+
         const res = await fetch('https://api.notion.com/v1/pages', {
             method: 'POST',
             headers: {
@@ -51,7 +54,9 @@ export async function POST(req: NextRequest) {
                 parent: { database_id: databaseId },
                 properties,
             }),
+            signal: controller.signal,
         })
+        clearTimeout(timeout)
 
         if (!res.ok) {
             const err = await res.json()

@@ -151,6 +151,8 @@ export type Database = {
                     wsjf_risk_reduction: number | null
                     wsjf_job_size: number | null
                     wsjf_score: number | null
+                    // Semantic search embedding (pgvector 3072 dimensions)
+                    embedding: number[] | null
                 }
                 Insert: {
                     id?: string
@@ -189,6 +191,7 @@ export type Database = {
                     wsjf_risk_reduction?: number | null
                     wsjf_job_size?: number | null
                     wsjf_score?: number | null
+                    embedding?: number[] | null
                 }
                 Update: {
                     id?: string
@@ -227,6 +230,7 @@ export type Database = {
                     wsjf_risk_reduction?: number | null
                     wsjf_job_size?: number | null
                     wsjf_score?: number | null
+                    embedding?: number[] | null
                 }
                 Relationships: [
                     {
@@ -354,7 +358,23 @@ export type Database = {
             }
         }
         Views: Record<string, never>
-        Functions: Record<string, never>
+        Functions: {
+            match_requests: {
+                Args: {
+                    query_embedding: number[]
+                    match_threshold: number
+                    match_count: number
+                    p_workspace_id: string
+                }
+                Returns: {
+                    id: string
+                    title: string
+                    description: string | null
+                    status: string
+                    similarity: number
+                }[]
+            }
+        }
         Enums: Record<string, never>
         CompositeTypes: Record<string, never>
     }

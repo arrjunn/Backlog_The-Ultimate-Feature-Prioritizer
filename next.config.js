@@ -1,10 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     typescript: {
-        // PostgREST v12 generic overloads in @supabase/supabase-js v2 collapse
-        // .insert()/.update() types to `never` with manually-authored DB types.
-        // Regenerate types with `npx supabase gen types typescript` to fully resolve.
-        ignoreBuildErrors: true,
+        // NOTE: If type errors occur, regenerate types with `npx supabase gen types typescript`
+        ignoreBuildErrors: false,
     },
     images: {
         remotePatterns: [

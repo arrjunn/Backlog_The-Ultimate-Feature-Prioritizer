@@ -62,11 +62,12 @@ function analyzeText(text: string) {
 
     const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, Math.round(v)))
 
+    // Average the accumulated deltas when multiple rules match
     return {
-        reach: clamp(matchCount > 1 ? Math.round(reach / Math.max(matchCount - 1, 1)) : reach, 1, 10),
-        impact: clamp(matchCount > 1 ? Math.round(impact / Math.max(matchCount - 1, 1)) : impact, 1, 10),
-        confidence: clamp(confidence, 10, 100),
-        effort: clamp(matchCount > 1 ? Math.round(effort / Math.max(matchCount - 1, 1)) : effort, 1, 10),
+        reach: clamp(matchCount > 1 ? Math.round(5 + (reach - 5) / matchCount) : reach, 1, 10),
+        impact: clamp(matchCount > 1 ? Math.round(5 + (impact - 5) / matchCount) : impact, 1, 10),
+        confidence: clamp(matchCount > 1 ? Math.round(70 + (confidence - 70) / matchCount) : confidence, 10, 100),
+        effort: clamp(matchCount > 1 ? Math.round(5 + (effort - 5) / matchCount) : effort, 1, 10),
         tags: Array.from(new Set(matchedTags)),
     }
 }
@@ -125,6 +126,12 @@ export async function POST(req: NextRequest) {
 
         if (!title || !framework) {
             return NextResponse.json({ error: 'title and framework are required' }, { status: 400 })
+        }
+        if (typeof title !== 'string' || title.length > 500) {
+            return NextResponse.json({ error: 'Title too long (max 500 chars)' }, { status: 400 })
+        }
+        if (typeof description === 'string' && description.length > 5000) {
+            return NextResponse.json({ error: 'Description too long (max 5,000 chars)' }, { status: 400 })
         }
 
         const suggestion = getSuggestion(title, description ?? '', framework)

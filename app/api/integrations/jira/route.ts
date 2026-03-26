@@ -13,6 +13,19 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
+        // SSRF protection: only allow Atlassian domains
+        try {
+            const url = new URL(jiraUrl)
+            if (!url.hostname.endsWith('.atlassian.net') && !url.hostname.endsWith('.jira.com')) {
+                return NextResponse.json({ error: 'Invalid Jira URL — must be an Atlassian domain' }, { status: 400 })
+            }
+            if (url.protocol !== 'https:') {
+                return NextResponse.json({ error: 'Jira URL must use HTTPS' }, { status: 400 })
+            }
+        } catch {
+            return NextResponse.json({ error: 'Invalid Jira URL' }, { status: 400 })
+        }
+
         const base = jiraUrl.replace(/\/$/, '')
         const authHeader = Buffer.from(`${email}:${apiToken}`).toString('base64')
 
@@ -29,6 +42,9 @@ export async function POST(req: NextRequest) {
             },
         }
 
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 15000)
+
         const res = await fetch(`${base}/rest/api/3/issue`, {
             method: 'POST',
             headers: {
@@ -37,7 +53,9 @@ export async function POST(req: NextRequest) {
                 Accept: 'application/json',
             },
             body: JSON.stringify(body),
+            signal: controller.signal,
         })
+        clearTimeout(timeout)
 
         if (!res.ok) {
             const err = await res.json()

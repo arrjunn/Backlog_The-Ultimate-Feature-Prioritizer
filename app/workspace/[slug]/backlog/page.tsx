@@ -27,6 +27,7 @@ import { FeatureRequest, Profile } from '@/types/database.types'
 import { cn } from '@/lib/utils/cn'
 import { getInitials } from '@/lib/utils/shared'
 import { useWorkspace } from '../WorkspaceLayoutClient'
+import { toast } from 'sonner'
 
 type SortOption = 'active_score' | 'vote_count' | 'created_at'
 type SortDir = 'asc' | 'desc'
@@ -72,7 +73,7 @@ export default function BacklogPage() {
 
     // semantic search state
     const [semanticQuery, setSemanticQuery] = useState('')
-    const [semanticResults, setSemanticResults] = useState<any[]>([])
+    const [semanticResults, setSemanticResults] = useState<{ id: string; title: string; description: string | null; status: string; similarity: number }[]>([])
     const [semanticLoading, setSemanticLoading] = useState(false)
     const semanticTimeout = useRef<NodeJS.Timeout | null>(null)
 
@@ -111,6 +112,7 @@ export default function BacklogPage() {
                 setSemanticResults(data.results || [])
             } catch {
                 setSemanticResults([])
+                toast.error('Semantic search failed — try again')
             } finally {
                 setSemanticLoading(false)
             }
@@ -375,7 +377,7 @@ export default function BacklogPage() {
                                 ))
                             ) : displayRows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-16 text-center">
+                                    <td colSpan={6} className="px-4 py-16 text-center">
                                         <div className="flex flex-col items-center gap-3 text-muted-foreground">
                                             <Inbox className="h-12 w-12 opacity-30" />
                                             <div>

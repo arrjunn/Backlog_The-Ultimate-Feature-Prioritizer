@@ -4,14 +4,6 @@ import { escapeHtml } from '@/lib/utils/shared'
 
 const RESEND_URL = 'https://api.resend.com/emails'
 
-function markdownToHtml(text: string): string {
-    return text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/^- (.+)$/gm, '<li>$1</li>')
-        .replace(/(<li>.*<\/li>)/s, '<ul style="padding-left:16px;margin:8px 0;">$1</ul>')
-        .replace(/\n/g, '<br>')
-}
-
 export async function GET(req: NextRequest) {
     const cronSecret = process.env.CRON_SECRET
     const authHeader = req.headers.get('authorization')
@@ -27,6 +19,10 @@ export async function GET(req: NextRequest) {
     if (!supabaseUrl || !supabaseKey) {
         return NextResponse.json({ error: 'Supabase env vars not configured' }, { status: 500 })
     }
+
+    const langflowUrl = process.env.LANGFLOW_FLOW_URL || 'https://aws-us-east-2.langflow.datastax.com/lf/8564c1bc-1419-4ac1-bd57-5ac513af3939/api/v1/run/c75be9c4-62d3-4e6a-b14e-b94224dbf11f'
+    const langflowOrgId = process.env.LANGFLOW_ORG_ID || '3eb722f0-a013-4727-b3ba-854ed6988059'
+    const emailFrom = process.env.EMAIL_FROM || 'Backlog <onboarding@resend.dev>'
 
     const supabase = createClient(supabaseUrl, supabaseKey)
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
@@ -95,34 +91,40 @@ export async function GET(req: NextRequest) {
 
             let aiSummary = ''
             try {
-                const langflowRes = await fetch(
-                    'https://aws-us-east-2.langflow.datastax.com/lf/8564c1bc-1419-4ac1-bd57-5ac513af3939/api/v1/run/c75be9c4-62d3-4e6a-b14e-b94224dbf11f',
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'Authorization': `Bearer ${process.env.LANGFLOW_TOKEN}`,
-                            'X-DataStax-Current-Org': '3eb722f0-a013-4727-b3ba-854ed6988059',
-                        },
-                        body: JSON.stringify({
-                            input_type: 'chat',
-                            output_type: 'chat',
-                            input_value: `
+                const langflowController = new AbortController()
+                const langflowTimeout = setTimeout(() => langflowController.abort(), 30000)
+
+                const langflowRes = await fetch(langflowUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${process.env.LANGFLOW_TOKEN}`,
+                        'X-DataStax-Current-Org': langflowOrgId,
+                    },
+                    body: JSON.stringify({
+                        input_type: 'chat',
+                        output_type: 'chat',
+                        input_value: `
 Workspace: ${ws.name}
 New requests this week: ${newRequests || 0}
 Shipped this week: ${shipped || 0}
 New votes this week: ${newVotes}
 New comments this week: ${newComments}
 Top requests: ${(topRequests || []).map((r: any) => r.title).join(', ')}
-              `.trim(),
-                        }),
-                    }
-                )
-                const langflowData = await langflowRes.json()
-                const raw = langflowData?.outputs?.[0]?.outputs?.[0]?.messages?.[0]?.message ||
-                    langflowData?.outputs?.[0]?.outputs?.[0]?.results?.message?.text || ''
-                aiSummary = markdownToHtml(raw)
+                        `.trim(),
+                    }),
+                    signal: langflowController.signal,
+                })
+                clearTimeout(langflowTimeout)
+
+                if (!langflowRes.ok) {
+                    console.error('Langflow error:', langflowRes.status)
+                } else {
+                    const langflowData = await langflowRes.json()
+                    aiSummary = langflowData?.outputs?.[0]?.outputs?.[0]?.messages?.[0]?.message ||
+                        langflowData?.outputs?.[0]?.outputs?.[0]?.results?.message?.text || ''
+                }
             } catch (e) {
                 console.error('Langflow error:', e)
             }
@@ -191,20 +193,34 @@ Top requests: ${(topRequests || []).map((r: any) => r.title).join(', ')}
                 const profile = (admin as any).profiles
                 if (!profile?.email) continue
 
-                await fetch(RESEND_URL, {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        from: 'Backlog <onboarding@resend.dev>',
-                        to: profile.email,
-                        subject: `Weekly Digest — ${ws.name}`,
-                        html,
-                    }),
-                })
-                totalSent++
+                try {
+                    const emailController = new AbortController()
+                    const emailTimeout = setTimeout(() => emailController.abort(), 10000)
+
+                    const emailRes = await fetch(RESEND_URL, {
+                        method: 'POST',
+                        headers: {
+                            Authorization: `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            from: emailFrom,
+                            to: profile.email,
+                            subject: `Weekly Digest — ${ws.name}`,
+                            html,
+                        }),
+                        signal: emailController.signal,
+                    })
+                    clearTimeout(emailTimeout)
+
+                    if (emailRes.ok) {
+                        totalSent++
+                    } else {
+                        console.error(`Failed to send email to ${profile.email}: ${emailRes.status}`)
+                    }
+                } catch (emailErr) {
+                    console.error(`Email send error for ${profile.email}:`, emailErr)
+                }
             }
         }
 

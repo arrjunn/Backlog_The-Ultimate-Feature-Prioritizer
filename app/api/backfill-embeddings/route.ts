@@ -1,20 +1,29 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY!
+const BATCH_SIZE = 100
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+    // Protect with CRON_SECRET (same as digest) since this is an admin operation
+    const cronSecret = process.env.CRON_SECRET
+    const authHeader = req.headers.get('authorization')
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     try {
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         )
 
-        // get all requests that don't have embeddings yet
+        // Get requests that don't have embeddings yet (paginated)
         const { data: requests, error: fetchError } = await supabase
             .from('feature_requests')
             .select('id, title, description, tags')
             .is('embedding', null)
+            .limit(BATCH_SIZE)
 
         if (fetchError) throw fetchError
         if (!requests || requests.length === 0) {
@@ -24,9 +33,12 @@ export async function POST() {
         let successCount = 0
         let failCount = 0
 
-        for (const req of requests) {
+        for (const item of requests) {
             try {
-                const text = `${req.title} ${req.description || ''} ${(req.tags || []).join(' ')}`
+                const text = `${item.title} ${item.description || ''} ${(item.tags || []).join(' ')}`
+
+                const controller = new AbortController()
+                const timeout = setTimeout(() => controller.abort(), 15000)
 
                 const res = await fetch(
                     `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GOOGLE_API_KEY}`,
@@ -35,15 +47,17 @@ export async function POST() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             content: { parts: [{ text }] }
-                        })
+                        }),
+                        signal: controller.signal,
                     }
                 )
+                clearTimeout(timeout)
 
                 const data = await res.json()
                 const embedding = data?.embedding?.values
 
                 if (!embedding) {
-                    console.error(`No embedding for request ${req.id}:`, JSON.stringify(data))
+                    console.error(`No embedding for request ${item.id}`)
                     failCount++
                     continue
                 }
@@ -51,21 +65,20 @@ export async function POST() {
                 const { error: updateError } = await supabase
                     .from('feature_requests')
                     .update({ embedding })
-                    .eq('id', req.id)
+                    .eq('id', item.id)
 
                 if (updateError) {
-                    console.error(`Failed to update request ${req.id}:`, updateError)
+                    console.error(`Failed to update request ${item.id}:`, updateError.message)
                     failCount++
                 } else {
                     successCount++
-                    console.log(`Embedded request ${req.id}: ${req.title}`)
                 }
 
-                // small delay to avoid hitting Google's rate limit
+                // Small delay to avoid hitting Google's rate limit
                 await new Promise(resolve => setTimeout(resolve, 200))
 
             } catch (err) {
-                console.error(`Error processing request ${req.id}:`, err)
+                console.error(`Error processing request ${item.id}:`, err)
                 failCount++
             }
         }
