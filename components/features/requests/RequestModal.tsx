@@ -73,7 +73,6 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
     const supabase = createClient()
     const supabaseRaw = createUntypedClient()
 
-    // RICE fields from form
     const {
         register,
         handleSubmit,
@@ -119,7 +118,6 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
 
             const riceScore = calculateRiceScore(values.reach, values.impact, values.confidence, values.effort)
 
-            // Merge RICE + all additional framework data
             const iceData = frameworkData['ice'] as { ice_impact?: number; ice_confidence?: number; ice_ease?: number } | undefined
             const moscowData = frameworkData['moscow'] as { moscow_category?: string; moscow_rationale?: string } | undefined
             const jtbdData = frameworkData['jtbd'] as { jtbd_job_statement?: string; jtbd_importance?: number; jtbd_satisfaction?: number } | undefined
@@ -145,8 +143,18 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
                 ...(wsjfData ? { wsjf_user_business_value: wsjfData.wsjf_user_business_value, wsjf_time_criticality: wsjfData.wsjf_time_criticality, wsjf_risk_reduction: wsjfData.wsjf_risk_reduction, wsjf_job_size: wsjfData.wsjf_job_size } : {}),
             }
 
-            const { error } = await supabaseRaw.from('feature_requests').insert(payload)
+            const { data: inserted, error } = await supabaseRaw.from('feature_requests').insert(payload).select('id').single()
             if (error) throw error
+
+            // generate embedding in background — non blocking
+            fetch('/api/embed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: inserted.id,
+                    text: `${values.title} ${values.description || ''} ${tags.join(' ')}`
+                })
+            }).catch(() => { })
 
             toast.success('Request created')
             queryClient.invalidateQueries({ queryKey: ['feature-requests', workspaceSlug] })
@@ -171,11 +179,9 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
     }
 
     const handleNextTab = async () => {
-        // Validate title before advancing to Score It
         const titleValue = watch('title')
         if (!titleValue || titleValue.trim().length < 3) {
             setSubmitAttempted(true)
-            // Trigger validation display
             await handleSubmit(() => { })().catch(() => { })
             return
         }
@@ -192,7 +198,6 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
                     <DialogTitle className="text-lg font-semibold">New Feature Request</DialogTitle>
                 </DialogHeader>
 
-                {/* Tabs */}
                 <div className="flex border-b border-border mt-4 px-6 shrink-0">
                     {([
                         { id: 'details', label: 'Details' },
@@ -219,7 +224,6 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
                     ))}
                 </div>
 
-                {/* Validation error banner — always visible regardless of tab */}
                 {submitAttempted && hasErrors && (
                     <div className="mx-6 mt-3 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5">
                         <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
@@ -266,7 +270,6 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
                                     />
                                 </div>
 
-                                {/* Tags */}
                                 <div className="space-y-1.5">
                                     <Label>Tags</Label>
                                     <div className="flex gap-2">
@@ -301,7 +304,6 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
 
                         {tab === 'score' && (
                             <div className="space-y-5">
-                                {/* Framework picker */}
                                 <div className="flex flex-wrap gap-2">
                                     {ALL_FRAMEWORKS.map((f) => (
                                         <button
@@ -323,7 +325,6 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
                                     ))}
                                 </div>
 
-                                {/* Dynamic form */}
                                 <div className="rounded-xl border border-border p-5">
                                     {activeScoreFramework === 'rice' && (
                                         <RICEForm
@@ -360,7 +361,6 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
                         )}
                     </div>
 
-                    {/* Footer */}
                     <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0 bg-card">
                         <div className="flex gap-2">
                             {tab === 'details' && (

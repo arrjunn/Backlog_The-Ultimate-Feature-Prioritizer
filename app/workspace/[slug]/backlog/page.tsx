@@ -13,6 +13,8 @@ import {
     Download,
     Tag,
     X,
+    Search,
+    Sparkles,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -67,6 +69,13 @@ export default function BacklogPage() {
     const [sortDir, setSortDir] = useState<SortDir>('desc')
     const [filterStatus, setFilterStatus] = useState<string>('all')
     const [filterTags, setFilterTags] = useState<string[]>([])
+
+    // semantic search state
+    const [semanticQuery, setSemanticQuery] = useState('')
+    const [semanticResults, setSemanticResults] = useState<any[]>([])
+    const [semanticLoading, setSemanticLoading] = useState(false)
+    const semanticTimeout = useRef<NodeJS.Timeout | null>(null)
+
     const supabase = createClient()
     const queryClient = useQueryClient()
 
@@ -82,6 +91,31 @@ export default function BacklogPage() {
             return (data || []) as (FeatureRequest & { profiles: Profile | null; votes: { id: string; user_id: string }[] })[]
         },
     })
+
+    // semantic search with debounce
+    useEffect(() => {
+        if (!semanticQuery.trim() || !workspace) {
+            setSemanticResults([])
+            return
+        }
+        if (semanticTimeout.current) clearTimeout(semanticTimeout.current)
+        semanticTimeout.current = setTimeout(async () => {
+            setSemanticLoading(true)
+            try {
+                const res = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: semanticQuery, workspaceId: workspace.id })
+                })
+                const data = await res.json()
+                setSemanticResults(data.results || [])
+            } catch {
+                setSemanticResults([])
+            } finally {
+                setSemanticLoading(false)
+            }
+        }, 600)
+    }, [semanticQuery, workspace])
 
     // Real-time subscription
     useEffect(() => {
@@ -103,7 +137,6 @@ export default function BacklogPage() {
 
     const currentUserId = profile?.id
 
-    // Collect all unique tags across all requests
     const allTags = useMemo(() => {
         if (!requests) return []
         const set = new Set<string>()
@@ -115,39 +148,28 @@ export default function BacklogPage() {
         ? requests
             .filter((r) => {
                 if (filterStatus !== 'all' && r.status !== filterStatus) return false
-
-                // If searching, match on title/description across ALL requests (bypass framework filter)
                 if (searchQuery) {
                     const q = searchQuery.toLowerCase()
                     return r.title.toLowerCase().includes(q) || (r.description?.toLowerCase().includes(q) ?? false)
                 }
-
-                // Tag filter: request must have ALL selected tags
                 if (filterTags.length > 0) {
                     const reqTags = r.tags || []
                     if (!filterTags.every(t => reqTags.includes(t))) return false
                 }
-
-                // Not searching: only show requests scored under the active framework
                 if (activeFramework) {
                     const score = getFrameworkScoreValue(r, activeFramework)
                     if (score === null || score === undefined) return false
                 }
-
                 return true
             })
             .sort((a, b) => {
                 let aVal: number, bVal: number
-
                 if (sortBy === 'active_score') {
                     const aScore = getFrameworkScoreValue(a, activeFramework || 'rice')
                     const bScore = getFrameworkScoreValue(b, activeFramework || 'rice')
-
-                    // Always put unscored items at the bottom regardless of sort direction
                     if (aScore === null && bScore === null) return 0
                     if (aScore === null) return 1
                     if (bScore === null) return -1
-
                     aVal = aScore
                     bVal = bScore
                 } else if (sortBy === 'vote_count') {
@@ -170,7 +192,6 @@ export default function BacklogPage() {
         }
     }
 
-    // CSV export
     const exportCSV = () => {
         const rows = filteredAndSorted.map(r => ({
             Title: r.title,
@@ -198,14 +219,16 @@ export default function BacklogPage() {
         a.href = url
         a.download = `backlog-${slug}-${new Date().toISOString().slice(0, 10)}.csv`
         a.click()
-        // Delay revocation to ensure the browser has started the download
         setTimeout(() => URL.revokeObjectURL(url), 1000)
     }
+
+    const isSemanticMode = semanticQuery.trim().length > 0
+    const displayRows = isSemanticMode ? semanticResults : filteredAndSorted
 
     return (
         <div className="p-4 sm:p-6 h-full">
             {/* Header + filters */}
-            <div className="flex flex-wrap items-center gap-3 mb-6">
+            <div className="flex flex-wrap items-center gap-3 mb-4">
                 <div>
                     <h1 className="ws-page-heading">Backlog</h1>
                     <p className="ws-page-sub">
@@ -226,7 +249,6 @@ export default function BacklogPage() {
                     </SelectContent>
                 </Select>
 
-                {/* CSV Export */}
                 <button
                     onClick={exportCSV}
                     disabled={filteredAndSorted.length === 0}
@@ -238,8 +260,35 @@ export default function BacklogPage() {
                 </button>
             </div>
 
+            {/* Semantic search bar */}
+            <div className="relative mb-4">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30 focus-within:border-primary/50 transition-colors">
+                    <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <input
+                        type="text"
+                        placeholder="Semantic search — find requests by meaning, not just keywords..."
+                        value={semanticQuery}
+                        onChange={e => setSemanticQuery(e.target.value)}
+                        className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                    />
+                    {semanticLoading && (
+                        <div className="h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+                    )}
+                    {semanticQuery && !semanticLoading && (
+                        <button onClick={() => { setSemanticQuery(''); setSemanticResults([]) }}>
+                            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                        </button>
+                    )}
+                </div>
+                {isSemanticMode && (
+                    <p className="text-[11px] text-muted-foreground mt-1.5 ml-1">
+                        {semanticLoading ? 'Searching...' : `${semanticResults.length} semantically similar result${semanticResults.length !== 1 ? 's' : ''}`}
+                    </p>
+                )}
+            </div>
+
             {/* Tag filter chips */}
-            {allTags.length > 0 && (
+            {allTags.length > 0 && !isSemanticMode && (
                 <div className="flex items-center gap-2 flex-wrap mb-4">
                     <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     {allTags.map(tag => {
@@ -284,35 +333,28 @@ export default function BacklogPage() {
                                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                                     Status
                                 </th>
-
-                                <th
-                                    className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
-                                    onClick={() => toggleSort('vote_count')}
-                                >
-                                    <span className="flex items-center gap-1">
-                                        Votes
-                                        {sortBy === 'vote_count' ? (
-                                            sortDir === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
-                                        ) : (
-                                            <ArrowUpDown className="h-3 w-3 opacity-30" />
-                                        )}
-                                    </span>
-                                </th>
+                                {isSemanticMode && (
+                                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                                        Similarity
+                                    </th>
+                                )}
+                                {!isSemanticMode && (
+                                    <th
+                                        className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                        onClick={() => toggleSort('vote_count')}
+                                    >
+                                        <span className="flex items-center gap-1">
+                                            Votes
+                                            {sortBy === 'vote_count' ? (
+                                                sortDir === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
+                                            ) : (
+                                                <ArrowUpDown className="h-3 w-3 opacity-30" />
+                                            )}
+                                        </span>
+                                    </th>
+                                )}
                                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                                     Submitted By
-                                </th>
-                                <th
-                                    className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
-                                    onClick={() => toggleSort('created_at')}
-                                >
-                                    <span className="flex items-center gap-1">
-                                        Date
-                                        {sortBy === 'created_at' ? (
-                                            sortDir === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
-                                        ) : (
-                                            <ArrowUpDown className="h-3 w-3 opacity-30" />
-                                        )}
-                                    </span>
                                 </th>
                                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Tags</th>
                                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Frameworks</th>
@@ -331,22 +373,68 @@ export default function BacklogPage() {
                                         <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
                                     </tr>
                                 ))
-                            ) : filteredAndSorted.length === 0 ? (
+                            ) : displayRows.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-16 text-center">
                                         <div className="flex flex-col items-center gap-3 text-muted-foreground">
                                             <Inbox className="h-12 w-12 opacity-30" />
                                             <div>
-                                                <p className="font-medium text-foreground">No feature requests yet</p>
+                                                <p className="font-medium text-foreground">
+                                                    {isSemanticMode ? 'No similar requests found' : 'No feature requests yet'}
+                                                </p>
                                                 <p className="text-sm mt-1">
-                                                    {searchQuery || filterStatus !== 'all'
-                                                        ? 'Try adjusting your filters'
-                                                        : 'Click "+ New Request" to add your first one'}
+                                                    {isSemanticMode ? 'Try a different search term' : searchQuery || filterStatus !== 'all' ? 'Try adjusting your filters' : 'Click "+ New Request" to add your first one'}
                                                 </p>
                                             </div>
                                         </div>
                                     </td>
                                 </tr>
+                            ) : isSemanticMode ? (
+                                // semantic results rows
+                                semanticResults.map((result) => {
+                                    const status = result.status as FeatureStatus
+                                    const statusCfg = STATUS_CONFIG[status] || STATUS_CONFIG['backlog']
+                                    const similarityPct = Math.round((result.similarity || 0) * 100)
+
+                                    return (
+                                        <tr
+                                            key={result.id}
+                                            className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors duration-150"
+                                            onClick={() => setSelectedRequestId(result.id)}
+                                        >
+                                            <td className="px-4 py-3">
+                                                <span className="font-medium line-clamp-1">{result.title}</span>
+                                                {result.description && (
+                                                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{result.description}</p>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold', statusCfg.color)}>
+                                                    <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', statusCfg.dot)} />
+                                                    {statusCfg.label}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+                                                        <div
+                                                            className="h-full rounded-full bg-primary"
+                                                            style={{ width: `${similarityPct}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs text-muted-foreground">{similarityPct}%</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <Avatar className="h-7 w-7">
+                                                    <AvatarFallback className="text-xs">?</AvatarFallback>
+                                                </Avatar>
+                                            </td>
+                                            <td className="px-4 py-3" />
+                                            <td className="px-4 py-3" />
+                                        </tr>
+                                    )
+                                })
                             ) : (
                                 filteredAndSorted.map((req) => {
                                     const status = req.status as FeatureStatus
@@ -368,7 +456,6 @@ export default function BacklogPage() {
                                                     {statusCfg.label}
                                                 </span>
                                             </td>
-
                                             <td className="px-4 py-3">
                                                 <span className={cn('flex items-center gap-1 text-sm', userVoted ? 'text-red-500' : 'text-muted-foreground')}>
                                                     <Heart className={cn('h-3.5 w-3.5', userVoted && 'fill-current')} />
@@ -380,9 +467,6 @@ export default function BacklogPage() {
                                                     <AvatarImage src={req.profiles?.avatar_url || ''} />
                                                     <AvatarFallback className="text-xs">{getInitials(req.profiles?.full_name || '')}</AvatarFallback>
                                                 </Avatar>
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                                                {formatRelativeDate(req.created_at)}
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex gap-1 flex-wrap">
@@ -430,30 +514,24 @@ export default function BacklogPage() {
                 </div>
             </div>
 
-            {/* New Request Modal */}
-            {
-                workspace && (
-                    <RequestModal
-                        open={showNewRequestModal}
-                        onClose={() => setShowNewRequestModal(false)}
-                        workspaceId={workspace.id}
-                        workspaceSlug={slug}
-                    />
-                )
-            }
+            {workspace && (
+                <RequestModal
+                    open={showNewRequestModal}
+                    onClose={() => setShowNewRequestModal(false)}
+                    workspaceId={workspace.id}
+                    workspaceSlug={slug}
+                />
+            )}
 
-            {/* Slide-over */}
-            {
-                workspace && (
-                    <RequestSlideOver
-                        requestId={selectedRequestId}
-                        workspaceId={workspace.id}
-                        workspaceSlug={slug}
-                        isAdmin={isAdmin}
-                        onClose={() => setSelectedRequestId(null)}
-                    />
-                )
-            }
-        </div >
+            {workspace && (
+                <RequestSlideOver
+                    requestId={selectedRequestId}
+                    workspaceId={workspace.id}
+                    workspaceSlug={slug}
+                    isAdmin={isAdmin}
+                    onClose={() => setSelectedRequestId(null)}
+                />
+            )}
+        </div>
     )
 }

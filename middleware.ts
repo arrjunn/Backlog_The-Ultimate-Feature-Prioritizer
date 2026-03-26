@@ -45,7 +45,10 @@ export async function middleware(request: NextRequest) {
         pathname === '/signup' ||
         pathname === '/forgot-password' ||
         pathname === '/verify-email' ||
-        pathname.startsWith('/auth/')
+        pathname.startsWith('/auth/') ||
+        pathname.startsWith('/api/digest') ||
+        pathname.startsWith('/api/embed') ||
+        pathname.startsWith('/api/backfill-embeddings')
 
     // Redirect unauthenticated users away from protected routes
     if (!user && !isPublicRoute) {

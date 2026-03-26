@@ -4,14 +4,15 @@ import { escapeHtml } from '@/lib/utils/shared'
 
 const RESEND_URL = 'https://api.resend.com/emails'
 
-/**
- * Weekly digest email — called via cron (e.g., Vercel Cron).
- * Sends each workspace admin a summary of the past 7 days.
- *
- * Auth: Uses a shared CRON_SECRET header (not user auth).
- */
+function markdownToHtml(text: string): string {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/s, '<ul style="padding-left:16px;margin:8px 0;">$1</ul>')
+        .replace(/\n/g, '<br>')
+}
+
 export async function GET(req: NextRequest) {
-    // Verify cron secret
     const cronSecret = process.env.CRON_SECRET
     const authHeader = req.headers.get('authorization')
     if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
@@ -31,7 +32,6 @@ export async function GET(req: NextRequest) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
     try {
-        // Get all workspaces
         const { data: workspaces } = await supabase.from('workspaces').select('id, name, slug')
         if (!workspaces || workspaces.length === 0) {
             return NextResponse.json({ sent: 0 })
@@ -40,7 +40,6 @@ export async function GET(req: NextRequest) {
         let totalSent = 0
 
         for (const ws of workspaces) {
-            // Get admins
             const { data: admins } = await supabase
                 .from('workspace_members')
                 .select('user_id, profiles(email, full_name)')
@@ -49,14 +48,12 @@ export async function GET(req: NextRequest) {
 
             if (!admins || admins.length === 0) continue
 
-            // New requests this week
             const { count: newRequests } = await supabase
                 .from('feature_requests')
                 .select('*', { count: 'exact', head: true })
                 .eq('workspace_id', ws.id)
                 .gte('created_at', sevenDaysAgo)
 
-            // Shipped this week
             const { count: shipped } = await supabase
                 .from('feature_requests')
                 .select('*', { count: 'exact', head: true })
@@ -64,7 +61,6 @@ export async function GET(req: NextRequest) {
                 .eq('status', 'shipped')
                 .gte('shipped_at', sevenDaysAgo)
 
-            // Total votes this week
             const { data: weekRequests } = await supabase
                 .from('feature_requests')
                 .select('id')
@@ -89,7 +85,6 @@ export async function GET(req: NextRequest) {
                 newComments = commentCount || 0
             }
 
-            // Top 3 most voted requests
             const { data: topRequests } = await supabase
                 .from('feature_requests')
                 .select('title, status, votes(id)')
@@ -98,9 +93,38 @@ export async function GET(req: NextRequest) {
                 .order('rice_score', { ascending: false, nullsFirst: false })
                 .limit(3)
 
-            // Skip if nothing happened
-            if ((newRequests || 0) === 0 && (shipped || 0) === 0 && newVotes === 0 && newComments === 0) {
-                continue
+            let aiSummary = ''
+            try {
+                const langflowRes = await fetch(
+                    'https://aws-us-east-2.langflow.datastax.com/lf/8564c1bc-1419-4ac1-bd57-5ac513af3939/api/v1/run/c75be9c4-62d3-4e6a-b14e-b94224dbf11f',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'Authorization': `Bearer ${process.env.LANGFLOW_TOKEN}`,
+                            'X-DataStax-Current-Org': '3eb722f0-a013-4727-b3ba-854ed6988059',
+                        },
+                        body: JSON.stringify({
+                            input_type: 'chat',
+                            output_type: 'chat',
+                            input_value: `
+Workspace: ${ws.name}
+New requests this week: ${newRequests || 0}
+Shipped this week: ${shipped || 0}
+New votes this week: ${newVotes}
+New comments this week: ${newComments}
+Top requests: ${(topRequests || []).map((r: any) => r.title).join(', ')}
+              `.trim(),
+                        }),
+                    }
+                )
+                const langflowData = await langflowRes.json()
+                const raw = langflowData?.outputs?.[0]?.outputs?.[0]?.messages?.[0]?.message ||
+                    langflowData?.outputs?.[0]?.outputs?.[0]?.results?.message?.text || ''
+                aiSummary = markdownToHtml(raw)
+            } catch (e) {
+                console.error('Langflow error:', e)
             }
 
             const topRequestsHtml = (topRequests || [])
@@ -110,7 +134,7 @@ export async function GET(req: NextRequest) {
                 })
                 .join('')
 
-            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || ''
+            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://backlog-the-ultimate-feature-priori.vercel.app'
             const wsUrl = `${siteUrl}/workspace/${ws.slug}/backlog`
 
             const html = `
@@ -122,28 +146,34 @@ export async function GET(req: NextRequest) {
     <h1 style="font-size:18px;font-weight:700;margin:0 0 4px;">Weekly Digest</h1>
     <p style="color:#666;font-size:13px;margin:0 0 24px;">${escapeHtml(ws.name)} — last 7 days</p>
 
-    <div style="display:flex;gap:12px;margin-bottom:24px;">
-      <div style="flex:1;padding:16px;border:1px solid rgba(255,255,255,0.1);text-align:center;">
-        <div style="font-size:24px;font-weight:700;">${newRequests || 0}</div>
-        <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">New Requests</div>
-      </div>
-      <div style="flex:1;padding:16px;border:1px solid rgba(255,255,255,0.1);text-align:center;">
-        <div style="font-size:24px;font-weight:700;">${shipped || 0}</div>
-        <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">Shipped</div>
-      </div>
-      <div style="flex:1;padding:16px;border:1px solid rgba(255,255,255,0.1);text-align:center;">
-        <div style="font-size:24px;font-weight:700;">${newVotes}</div>
-        <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">Votes</div>
-      </div>
-      <div style="flex:1;padding:16px;border:1px solid rgba(255,255,255,0.1);text-align:center;">
-        <div style="font-size:24px;font-weight:700;">${newComments}</div>
-        <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;">Comments</div>
-      </div>
-    </div>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+      <tr>
+        <td width="25%" style="padding:16px 8px 16px 0;border:1px solid rgba(255,255,255,0.1);text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#f5f5f5;">${newRequests || 0}</div>
+          <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;">New Requests</div>
+        </td>
+        <td width="25%" style="padding:16px 8px;border:1px solid rgba(255,255,255,0.1);border-left:none;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#f5f5f5;">${shipped || 0}</div>
+          <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;">Shipped</div>
+        </td>
+        <td width="25%" style="padding:16px 8px;border:1px solid rgba(255,255,255,0.1);border-left:none;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#f5f5f5;">${newVotes}</div>
+          <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;">Votes</div>
+        </td>
+        <td width="25%" style="padding:16px 8px;border:1px solid rgba(255,255,255,0.1);border-left:none;text-align:center;">
+          <div style="font-size:24px;font-weight:700;color:#f5f5f5;">${newComments}</div>
+          <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;">Comments</div>
+        </td>
+      </tr>
+    </table>
 
     ${topRequestsHtml ? `
     <h2 style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#666;margin:0 0 12px;">Top Requests</h2>
     <ul style="padding-left:16px;margin:0 0 24px;font-size:14px;line-height:1.6;">${topRequestsHtml}</ul>
+    ` : ''}
+
+    ${aiSummary ? `
+    <p style="font-size:11px;color:#555;line-height:1.6;margin:0 0 24px;font-style:italic;">${aiSummary}</p>
     ` : ''}
 
     <a href="${wsUrl}" style="display:inline-block;padding:10px 20px;background:#f5f5f5;color:#050505;text-decoration:none;font-size:13px;font-weight:600;">
@@ -157,7 +187,6 @@ export async function GET(req: NextRequest) {
 </body>
 </html>`
 
-            // Send to each admin
             for (const admin of admins) {
                 const profile = (admin as any).profiles
                 if (!profile?.email) continue
@@ -165,11 +194,11 @@ export async function GET(req: NextRequest) {
                 await fetch(RESEND_URL, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${apiKey}`,
+                        Authorization: `Bearer ${apiKey}`,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        from: 'Backlog <digest@updates.backlog.dev>',
+                        from: 'Backlog <onboarding@resend.dev>',
                         to: profile.email,
                         subject: `Weekly Digest — ${ws.name}`,
                         html,
@@ -181,6 +210,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({ sent: totalSent })
     } catch (err) {
+        console.error('Digest error:', err)
         return NextResponse.json({ error: 'Failed to send digests' }, { status: 500 })
     }
 }
