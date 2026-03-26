@@ -16,6 +16,8 @@ import {
     Eye,
     ExternalLink,
     Share2,
+    Trash2,
+    Link2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
@@ -72,6 +74,9 @@ export function RequestSlideOver({
     const [pushOpen, setPushOpen] = useState(false)
     const [pushing, setPushing] = useState<string | null>(null)
     const [pushResults, setPushResults] = useState<Record<string, string>>({})
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [pendingShippedConfirm, setPendingShippedConfirm] = useState(false)
     const commentsEndRef = useRef<HTMLDivElement>(null)
     const pushRef = useRef<HTMLDivElement>(null)
     const { isViewer, workspace } = useWorkspace()
@@ -196,8 +201,31 @@ export function RequestSlideOver({
         }
     }
 
+    const handleDelete = async () => {
+        if (!requestId || !currentUser || isDeleting) return
+        setIsDeleting(true)
+        try {
+            const { error } = await supabaseRaw.from('feature_requests').delete().eq('id', requestId)
+            if (error) throw error
+            queryClient.invalidateQueries({ queryKey: ['feature-requests', workspaceSlug] })
+            queryClient.invalidateQueries({ queryKey: ['feature-request', requestId] })
+            toast.success('Request deleted')
+            onClose()
+        } catch {
+            toast.error('Failed to delete request')
+        } finally {
+            setIsDeleting(false)
+            setShowDeleteConfirm(false)
+        }
+    }
+
     const handleStatusChange = async (newStatus: string) => {
         if (!requestId) return
+        if (newStatus === 'shipped' && !pendingShippedConfirm) {
+            setPendingShippedConfirm(true)
+            return
+        }
+        setPendingShippedConfirm(false)
         const oldStatus = request?.status ?? ''
         const { error } = await supabaseRaw
             .from('feature_requests')
@@ -357,6 +385,23 @@ export function RequestSlideOver({
         return () => document.removeEventListener('mousedown', handleClick)
     }, [])
 
+    // Escape key closes slide-over (dismiss delete confirm first)
+    useEffect(() => {
+        function handleKeyDown(e: KeyboardEvent) {
+            if (e.key === 'Escape' && requestId) {
+                if (showDeleteConfirm) { setShowDeleteConfirm(false); return }
+                if (pendingShippedConfirm) { setPendingShippedConfirm(false); return }
+                onClose()
+            }
+        }
+        document.addEventListener('keydown', handleKeyDown)
+        return () => document.removeEventListener('keydown', handleKeyDown)
+    }, [requestId, onClose, showDeleteConfirm, pendingShippedConfirm])
+
+    const canDelete = request && currentUser && !isViewer && (
+        isAdmin || request.submitted_by === currentUser.id
+    )
+
     const status = request?.status as FeatureStatus
     const statusConfig = status ? STATUS_CONFIG[status] : null
 
@@ -448,6 +493,32 @@ export function RequestSlideOver({
                             )
                         })()}
 
+                        {/* Copy link */}
+                        {requestId && (
+                            <button
+                                onClick={() => {
+                                    const url = `${window.location.origin}/workspace/${workspaceSlug}/backlog?request=${requestId}`
+                                    navigator.clipboard.writeText(url)
+                                    toast.success('Link copied to clipboard')
+                                }}
+                                className="p-1.5 rounded-lg hover:bg-accent transition-colors shrink-0"
+                                title="Copy link to request"
+                            >
+                                <Link2 className="h-4 w-4" />
+                            </button>
+                        )}
+
+                        {/* Delete */}
+                        {canDelete && (
+                            <button
+                                onClick={() => setShowDeleteConfirm(true)}
+                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                title="Delete request"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </button>
+                        )}
+
                         <button
                             onClick={onClose}
                             className="p-1.5 rounded-lg hover:bg-accent transition-colors shrink-0"
@@ -456,6 +527,41 @@ export function RequestSlideOver({
                         </button>
                     </div>
                 </div>
+
+                {/* Delete confirmation bar */}
+                {showDeleteConfirm && (
+                    <div className="flex items-center justify-between gap-3 px-5 py-3 bg-destructive/10 border-b border-destructive/20 shrink-0">
+                        <p className="text-sm text-destructive font-medium">
+                            Delete this request? This cannot be undone.
+                        </p>
+                        <div className="flex gap-2 shrink-0">
+                            <Button size="sm" variant="ghost" onClick={() => setShowDeleteConfirm(false)} disabled={isDeleting}>
+                                Cancel
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                                {isDeleting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+                                Delete
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Shipped confirmation bar */}
+                {pendingShippedConfirm && (
+                    <div className="flex items-center justify-between gap-3 px-5 py-3 bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-800 shrink-0">
+                        <p className="text-sm text-green-700 dark:text-green-300 font-medium">
+                            Mark as Shipped? This will notify the requester.
+                        </p>
+                        <div className="flex gap-2 shrink-0">
+                            <button onClick={() => setPendingShippedConfirm(false)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1">
+                                Cancel
+                            </button>
+                            <button onClick={() => handleStatusChange('shipped')} className="text-xs font-semibold text-green-700 dark:text-green-300 hover:underline px-2 py-1">
+                                Confirm Ship
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 <ScrollArea className="flex-1">
                     <div className="p-5 space-y-6">

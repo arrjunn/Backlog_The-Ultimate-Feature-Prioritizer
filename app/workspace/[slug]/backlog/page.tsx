@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import {
     ArrowUpDown,
     ChevronUp,
@@ -26,6 +26,7 @@ import { STATUS_CONFIG, FeatureStatus, formatRelativeDate } from '@/lib/utils/ri
 import { FeatureRequest, Profile } from '@/types/database.types'
 import { cn } from '@/lib/utils/cn'
 import { getInitials } from '@/lib/utils/shared'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useWorkspace } from '../WorkspaceLayoutClient'
 import { toast } from 'sonner'
 
@@ -64,8 +65,15 @@ function getFrameworkScoreValue(request: Partial<FeatureRequest>, frameworkId: s
 
 export default function BacklogPage() {
     const { slug } = useParams<{ slug: string }>()
+    const searchParams = useSearchParams()
     const { workspace, profile, isAdmin, searchQuery, showNewRequestModal, setShowNewRequestModal, activeFramework } = useWorkspace()
     const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null)
+
+    // Auto-open slide-over from shared link (?request=id)
+    useEffect(() => {
+        const requestParam = searchParams.get('request')
+        if (requestParam) setSelectedRequestId(requestParam)
+    }, [searchParams])
     const [sortBy, setSortBy] = useState<SortOption>('active_score')
     const [sortDir, setSortDir] = useState<SortDir>('desc')
     const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -324,6 +332,7 @@ export default function BacklogPage() {
             )}
 
             {/* Table */}
+            <TooltipProvider delayDuration={400}>
             <div className="rounded-xl border border-border bg-card overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -450,7 +459,16 @@ export default function BacklogPage() {
                                             onClick={() => setSelectedRequestId(req.id)}
                                         >
                                             <td className="px-4 py-3">
-                                                <span className="font-medium line-clamp-1">{req.title}</span>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="font-medium line-clamp-1 cursor-default">{req.title}</span>
+                                                    </TooltipTrigger>
+                                                    {req.description && (
+                                                        <TooltipContent side="bottom" align="start" className="max-w-xs">
+                                                            <p className="text-xs leading-relaxed line-clamp-4">{req.description}</p>
+                                                        </TooltipContent>
+                                                    )}
+                                                </Tooltip>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold', statusCfg.color)}>
@@ -515,6 +533,7 @@ export default function BacklogPage() {
                     </table>
                 </div>
             </div>
+            </TooltipProvider>
 
             {workspace && (
                 <RequestModal

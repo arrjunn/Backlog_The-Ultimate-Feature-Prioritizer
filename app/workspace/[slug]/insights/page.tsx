@@ -197,8 +197,9 @@ export default function InsightsPage() {
                     </CardHeader>
                     <CardContent>
                         {top10.length === 0 ? (
-                            <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
-                                No data yet
+                            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                                <BarChart3 className="h-8 w-8 opacity-30" />
+                                <p className="text-sm">Add feature requests with RICE scores to see rankings</p>
                             </div>
                         ) : (
                             <ResponsiveContainer width="100%" height={280}>
@@ -233,8 +234,9 @@ export default function InsightsPage() {
                     </CardHeader>
                     <CardContent>
                         {byStatus.length === 0 ? (
-                            <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
-                                No data yet
+                            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                                <Layers className="h-8 w-8 opacity-30" />
+                                <p className="text-sm">Add your first feature request to see status breakdown</p>
                             </div>
                         ) : (
                             <ResponsiveContainer width="100%" height={240}>
@@ -316,7 +318,10 @@ export default function InsightsPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {totalRequests === 0 ? (
-                        <div className="h-40 flex items-center justify-center text-muted-foreground text-sm">No data yet</div>
+                        <div className="h-40 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                            <Star className="h-8 w-8 opacity-30" />
+                            <p className="text-sm">Score your first request to track framework coverage</p>
+                        </div>
                     ) : (
                         coverageData.map((f) => (
                             <div key={f.name} className="space-y-1">

@@ -164,7 +164,13 @@ function KanbanColumn({
                     {requests.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-8 text-center">
                             <Inbox className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                            <p className="text-xs text-muted-foreground">Drop cards here</p>
+                            <p className="text-xs text-muted-foreground">
+                                {status === 'now' ? 'Drag your top priority here'
+                                    : status === 'next' ? 'Queue up what comes after'
+                                    : status === 'later' ? 'Park ideas for the future'
+                                    : status === 'backlog' ? 'New requests land here'
+                                    : 'Nothing shipped yet — you got this!'}
+                            </p>
                         </div>
                     ) : (
                         requests.map((req) => (

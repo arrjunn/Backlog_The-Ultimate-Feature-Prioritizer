@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Music2, Pause, Play, Volume2, VolumeX, Radio, CloudRain, Wind, Coffee, Waves } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils/cn'
 
 const STATIONS = [
@@ -12,10 +13,10 @@ const STATIONS = [
 ]
 
 const AMBIANCE = [
-    { name: 'Rain', icon: CloudRain, url: 'https://cdn.freesound.org/previews/531/531947_6142149-lq.mp3' },
-    { name: 'Wind', icon: Wind, url: 'https://cdn.freesound.org/previews/328/328157_5765230-lq.mp3' },
-    { name: 'Cafe', icon: Coffee, url: 'https://cdn.freesound.org/previews/443/443427_8970285-lq.mp3' },
-    { name: 'Waves', icon: Waves, url: 'https://cdn.freesound.org/previews/527/527602_4266903-lq.mp3' },
+    { name: 'Rain', icon: CloudRain, url: 'https://cdn.freesound.org/previews/243/243627_1015240-lq.mp3' },
+    { name: 'Wind', icon: Wind, url: 'https://cdn.freesound.org/previews/244/244944_4486188-lq.mp3' },
+    { name: 'Cafe', icon: Coffee, url: 'https://cdn.freesound.org/previews/348/348425_4930987-lq.mp3' },
+    { name: 'Waves', icon: Waves, url: 'https://cdn.freesound.org/previews/400/400632_7601831-lq.mp3' },
 ]
 
 interface AmbianceState {
@@ -36,6 +37,7 @@ export function LofiPlayer() {
     const [ambiance, setAmbiance] = useState<Record<string, AmbianceState>>(() =>
         Object.fromEntries(AMBIANCE.map((a) => [a.name, { playing: false, volume: 0.3, audio: null }]))
     )
+    const [ambianceErrors, setAmbianceErrors] = useState<Record<string, boolean>>({})
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const panelRef = useRef<HTMLDivElement>(null)
 
@@ -118,10 +120,21 @@ export function LofiPlayer() {
                 let audio = state.audio
                 if (!audio) {
                     audio = new Audio(sound.url)
+                    audio.crossOrigin = 'anonymous'
                     audio.loop = true
                     audio.volume = state.volume
+                    audio.onerror = () => {
+                        setAmbianceErrors((prev) => ({ ...prev, [name]: true }))
+                        toast.error(`Failed to load ${name} sound`)
+                        setAmbiance((prev) => ({ ...prev, [name]: { ...prev[name], playing: false } }))
+                    }
                 }
-                audio.play().catch(() => { })
+                setAmbianceErrors((prev) => ({ ...prev, [name]: false }))
+                audio.play().catch(() => {
+                    setAmbianceErrors((prev) => ({ ...prev, [name]: true }))
+                    toast.error(`Could not play ${name} — audio unavailable`)
+                    setAmbiance((prev) => ({ ...prev, [name]: { ...prev[name], playing: false } }))
+                })
                 return { ...prev, [name]: { ...state, playing: true, audio } }
             }
         })
@@ -297,12 +310,16 @@ export function LofiPlayer() {
                                                         'flex items-center gap-2 flex-1 text-xs px-2.5 py-1.5 rounded-lg transition-colors text-left',
                                                         state.playing
                                                             ? 'bg-primary/10 text-primary font-medium'
-                                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                                        ambianceErrors[sound.name] && 'opacity-60'
                                                     )}
                                                 >
                                                     <Icon className="h-3.5 w-3.5 shrink-0" />
                                                     {sound.name}
                                                 </button>
+                                                {ambianceErrors[sound.name] && (
+                                                    <span className="text-[10px] text-destructive shrink-0">unavailable</span>
+                                                )}
                                             </div>
                                             {state.playing && (
                                                 <input

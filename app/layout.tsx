@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/providers/ThemeProvider'
 import { QueryProvider } from '@/components/providers/QueryProvider'
 import { AnimationProvider } from '@/components/providers/AnimationProvider'
 import { Toaster } from 'sonner'
+import { ToastDismissOnClick } from '@/components/providers/ToastDismiss'
 
 const spaceGrotesk = Space_Grotesk({
     subsets: ['latin'],
@@ -58,6 +59,7 @@ export default function RootLayout({
                         </AnimationProvider>
                         <Toaster
                             position="bottom-right"
+                            closeButton
                             toastOptions={{
                                 classNames: {
                                     toast: 'bg-card border border-border text-foreground shadow-lg',
@@ -69,6 +71,7 @@ export default function RootLayout({
                                 },
                             }}
                         />
+                        <ToastDismissOnClick />
                     </QueryProvider>
                 </ThemeProvider>
             </body>

@@ -170,6 +170,14 @@ export function RequestModal({ open, onClose, workspaceId, workspaceSlug }: Requ
     }
 
     const handleClose = () => {
+        const titleValue = watch('title')
+        const descValue = watch('description')
+        const isDirty = (titleValue && titleValue.trim().length > 0) ||
+            (descValue && descValue.trim().length > 0) ||
+            tags.length > 0
+
+        if (isDirty && !window.confirm('You have unsaved changes. Discard them?')) return
+
         reset()
         setTags([])
         setFrameworkData({})
