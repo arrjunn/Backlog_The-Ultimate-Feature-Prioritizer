@@ -9,6 +9,7 @@ import {
     Kanban,
     BarChart3,
     Settings,
+    Network,
     Zap,
     LogOut,
     Bell,
@@ -55,6 +56,7 @@ const navItems = [
     { href: 'backlog', label: 'Backlog', icon: List },
     { href: 'board', label: 'Board', icon: Kanban },
     { href: 'insights', label: 'Insights', icon: BarChart3 },
+    { href: 'clusters', label: 'Clusters', icon: Network },
     { href: 'frameworks', label: 'Frameworks', icon: BookOpen },
     { href: 'settings', label: 'Settings', icon: Settings },
 ]
