@@ -1,6 +1,7 @@
 /**
  * K-means++ clustering with cosine similarity.
  * Designed for high-dimensional text embeddings (e.g. 3072-dim).
+ * Guarantees k non-empty clusters via post-convergence rebalancing.
  * Zero dependencies.
  */
 
@@ -57,7 +58,9 @@ function initCentroids(vectors: number[][], k: number): number[][] {
 
         // Weighted random selection
         if (totalWeight === 0) {
-            centroids.push([...vectors[Math.floor(Math.random() * n)]])
+            // All points are identical — pick evenly spaced indices
+            const idx = Math.floor((c * n) / k)
+            centroids.push([...vectors[idx]])
             continue
         }
         let r = Math.random() * totalWeight
@@ -77,8 +80,55 @@ function initCentroids(vectors: number[][], k: number): number[][] {
 }
 
 /**
+ * After k-means converges, ensure every cluster has at least 1 point.
+ * Steals the farthest point from the largest cluster to fill empty ones.
+ */
+function rebalance(assignments: number[], vectors: number[][], centroids: number[][], k: number): void {
+    const n = assignments.length
+
+    for (let c = 0; c < k; c++) {
+        // Check if cluster c is empty
+        const hasMembers = assignments.some((a) => a === c)
+        if (hasMembers) continue
+
+        // Find the largest cluster
+        const counts: number[] = new Array(k).fill(0)
+        for (let i = 0; i < n; i++) counts[assignments[i]]++
+
+        let largestCluster = 0
+        for (let j = 1; j < k; j++) {
+            if (counts[j] > counts[largestCluster]) largestCluster = j
+        }
+
+        // Can't steal from a cluster with only 1 point
+        if (counts[largestCluster] <= 1) continue
+
+        // Find the point in the largest cluster farthest from its centroid
+        let farthestIdx = -1
+        let lowestSim = Infinity
+        for (let i = 0; i < n; i++) {
+            if (assignments[i] !== largestCluster) continue
+            const sim = dot(vectors[i], centroids[largestCluster])
+            if (sim < lowestSim) {
+                lowestSim = sim
+                farthestIdx = i
+            }
+        }
+
+        if (farthestIdx >= 0) {
+            assignments[farthestIdx] = c
+            // Update centroid for the new cluster
+            for (let d = 0; d < centroids[c].length; d++) {
+                centroids[c][d] = vectors[farthestIdx][d]
+            }
+        }
+    }
+}
+
+/**
  * Run k-means clustering with cosine similarity.
  * Vectors are normalized internally — originals are not mutated.
+ * Guarantees k non-empty clusters when n >= k.
  */
 export function kMeansCosine(
     rawVectors: number[][],
@@ -88,7 +138,6 @@ export function kMeansCosine(
     const n = rawVectors.length
     if (n === 0) return { assignments: [], centroids: [], iterations: 0 }
     if (k >= n) {
-        // Each point is its own cluster
         return {
             assignments: rawVectors.map((_, i) => i),
             centroids: rawVectors.map((v) => [...v]),
@@ -101,7 +150,7 @@ export function kMeansCosine(
     let centroids = initCentroids(vectors, k)
     centroids.forEach((c) => normalize(c))
 
-    let assignments = new Array<number>(n).fill(0)
+    const assignments = new Array<number>(n).fill(0)
     let iterations = 0
 
     for (let iter = 0; iter < maxIterations; iter++) {
@@ -147,13 +196,20 @@ export function kMeansCosine(
                 }
                 normalize(newCentroids[c])
             } else {
-                // Empty cluster — reinitialize to a random point
-                newCentroids[c] = [...vectors[Math.floor(Math.random() * n)]]
+                // Empty cluster — steal farthest point from largest cluster
+                // (handled more thoroughly in rebalance, but seed with random for next iter)
+                const idx = Math.floor(Math.random() * n)
+                for (let d = 0; d < dim; d++) {
+                    newCentroids[c][d] = vectors[idx][d]
+                }
             }
         }
 
         centroids = newCentroids
     }
+
+    // Post-convergence: guarantee all k clusters are non-empty
+    rebalance(assignments, vectors, centroids, k)
 
     return { assignments, centroids, iterations }
 }

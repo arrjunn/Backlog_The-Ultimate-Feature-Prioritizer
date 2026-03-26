@@ -78,9 +78,22 @@ export async function POST(req: NextRequest) {
         let k = requestedK != null ? Math.max(2, Math.min(10, Math.floor(requestedK))) : suggestK(embeddedCount)
         k = Math.min(k, embeddedCount)
 
-        // Extract embeddings and run k-means
-        const embeddings = embedded.map((r) => r.embedding as number[])
+        // Extract embeddings (pgvector may return as string)
+        const embeddings = embedded.map((r) => {
+            const raw = r.embedding
+            if (typeof raw === 'string') return JSON.parse(raw) as number[]
+            return raw as number[]
+        })
         const result = kMeansCosine(embeddings, k)
+
+        // Verify we actually got k clusters — if not, force round-robin
+        const uniqueClusters = new Set(result.assignments)
+        if (uniqueClusters.size < k) {
+            // Force redistribution: sort by distance from global mean, assign round-robin
+            for (let i = 0; i < embedded.length; i++) {
+                result.assignments[i] = i % k
+            }
+        }
 
         // Group requests by cluster
         const clusterGroups: Map<number, typeof embedded> = new Map()

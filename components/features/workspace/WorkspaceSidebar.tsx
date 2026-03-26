@@ -54,9 +54,9 @@ import {
 
 const navItems = [
     { href: 'backlog', label: 'Backlog', icon: List },
+    { href: 'clusters', label: 'Clusters', icon: Network },
     { href: 'board', label: 'Board', icon: Kanban },
     { href: 'insights', label: 'Insights', icon: BarChart3 },
-    { href: 'clusters', label: 'Clusters', icon: Network },
     { href: 'frameworks', label: 'Frameworks', icon: BookOpen },
     { href: 'settings', label: 'Settings', icon: Settings },
 ]

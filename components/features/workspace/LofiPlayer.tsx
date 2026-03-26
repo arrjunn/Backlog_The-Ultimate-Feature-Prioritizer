@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Music2, Pause, Play, Volume2, VolumeX, Radio, CloudRain, Wind, Coffee, Waves } from 'lucide-react'
-import { toast } from 'sonner'
+import { Music2, Pause, Play, Volume2, VolumeX, Radio, CloudRain, Wind, Coffee, Waves, Square } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
 const STATIONS = [
@@ -12,18 +11,308 @@ const STATIONS = [
     { name: 'Suburbs of Goa', url: 'https://ice4.somafm.com/suburbsofgoa-128-mp3' },
 ]
 
-const AMBIANCE = [
-    { name: 'Rain', icon: CloudRain, url: 'https://cdn.freesound.org/previews/243/243627_1015240-lq.mp3' },
-    { name: 'Wind', icon: Wind, url: 'https://cdn.freesound.org/previews/244/244944_4486188-lq.mp3' },
-    { name: 'Cafe', icon: Coffee, url: 'https://cdn.freesound.org/previews/348/348425_4930987-lq.mp3' },
-    { name: 'Waves', icon: Waves, url: 'https://cdn.freesound.org/previews/400/400632_7601831-lq.mp3' },
-]
+const AMBIANCE_SOUNDS = [
+    { name: 'Rain', icon: CloudRain },
+    { name: 'Wind', icon: Wind },
+    { name: 'Cafe', icon: Coffee },
+    { name: 'Waves', icon: Waves },
+] as const
 
-interface AmbianceState {
-    playing: boolean
-    volume: number
-    audio: HTMLAudioElement | null
+// ─── Ambient sound engine ───
+// Uses Web Audio API with shaped noise — no external URLs, works offline.
+// Each sound gets its own AudioContext so start/stop is clean.
+
+interface AmbientEngine {
+    ctx: AudioContext
+    gain: GainNode
+    stop: () => void
 }
+
+function makeNoise(ctx: AudioContext, type: 'white' | 'pink' | 'brown', seconds: number): AudioBuffer {
+    const buf = ctx.createBuffer(2, ctx.sampleRate * seconds, ctx.sampleRate)
+    for (let ch = 0; ch < 2; ch++) {
+        const data = buf.getChannelData(ch)
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0
+        let last = 0
+        for (let i = 0; i < data.length; i++) {
+            const white = Math.random() * 2 - 1
+            if (type === 'white') {
+                data[i] = white
+            } else if (type === 'pink') {
+                // Paul Kellet's refined method
+                b0 = 0.99886 * b0 + white * 0.0555179
+                b1 = 0.99332 * b1 + white * 0.0750759
+                b2 = 0.96900 * b2 + white * 0.1538520
+                b3 = 0.86650 * b3 + white * 0.3104856
+                b4 = 0.55000 * b4 + white * 0.5329522
+                b5 = -0.7616 * b5 - white * 0.0168980
+                data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11
+                b6 = white * 0.115926
+            } else {
+                // Brown: integrated white noise
+                last = (last + white * 0.02) / 1.02
+                data[i] = last * 3.5
+            }
+        }
+    }
+    return buf
+}
+
+function startRain(vol: number): AmbientEngine {
+    const ctx = new AudioContext()
+    const master = ctx.createGain()
+    master.gain.value = vol
+    master.connect(ctx.destination)
+
+    // Layer 1: steady rain body (pink noise, mid-high frequencies)
+    const rain1 = ctx.createBufferSource()
+    rain1.buffer = makeNoise(ctx, 'pink', 5)
+    rain1.loop = true
+    const hp1 = ctx.createBiquadFilter()
+    hp1.type = 'highpass'
+    hp1.frequency.value = 2500
+    const lp1 = ctx.createBiquadFilter()
+    lp1.type = 'lowpass'
+    lp1.frequency.value = 9000
+    const g1 = ctx.createGain()
+    g1.gain.value = 0.6
+    rain1.connect(hp1).connect(lp1).connect(g1).connect(master)
+
+    // Layer 2: heavier drops (white noise, narrow band, modulated)
+    const rain2 = ctx.createBufferSource()
+    rain2.buffer = makeNoise(ctx, 'white', 4)
+    rain2.loop = true
+    const bp2 = ctx.createBiquadFilter()
+    bp2.type = 'bandpass'
+    bp2.frequency.value = 5000
+    bp2.Q.value = 0.8
+    const g2 = ctx.createGain()
+    g2.gain.value = 0.3
+    // Slow amplitude modulation for variation
+    const lfo = ctx.createOscillator()
+    lfo.type = 'sine'
+    lfo.frequency.value = 0.08
+    const lfoG = ctx.createGain()
+    lfoG.gain.value = 0.12
+    lfo.connect(lfoG).connect(g2.gain)
+    rain2.connect(bp2).connect(g2).connect(master)
+
+    // Layer 3: low rumble (distant thunder ambiance)
+    const rain3 = ctx.createBufferSource()
+    rain3.buffer = makeNoise(ctx, 'brown', 6)
+    rain3.loop = true
+    const lp3 = ctx.createBiquadFilter()
+    lp3.type = 'lowpass'
+    lp3.frequency.value = 200
+    const g3 = ctx.createGain()
+    g3.gain.value = 0.25
+    rain3.connect(lp3).connect(g3).connect(master)
+
+    rain1.start()
+    rain2.start()
+    rain3.start()
+    lfo.start()
+
+    return {
+        ctx, gain: master,
+        stop: () => { ctx.close().catch(() => {}) },
+    }
+}
+
+function startWind(vol: number): AmbientEngine {
+    const ctx = new AudioContext()
+    const master = ctx.createGain()
+    master.gain.value = vol
+    master.connect(ctx.destination)
+
+    // Brown noise with slowly sweeping filter = organic wind
+    const src = ctx.createBufferSource()
+    src.buffer = makeNoise(ctx, 'brown', 8)
+    src.loop = true
+
+    const lp = ctx.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 500
+    lp.Q.value = 2
+
+    // Slow LFO sweeps the cutoff for gusting
+    const lfo1 = ctx.createOscillator()
+    lfo1.type = 'sine'
+    lfo1.frequency.value = 0.07
+    const lfo1G = ctx.createGain()
+    lfo1G.gain.value = 350
+    lfo1.connect(lfo1G).connect(lp.frequency)
+
+    // Second even slower LFO for intensity variation
+    const lfo2 = ctx.createOscillator()
+    lfo2.type = 'sine'
+    lfo2.frequency.value = 0.02
+    const lfo2G = ctx.createGain()
+    lfo2G.gain.value = 0.3
+    const ampMod = ctx.createGain()
+    ampMod.gain.value = 0.7
+    lfo2.connect(lfo2G).connect(ampMod.gain)
+
+    // Higher whistle layer
+    const whistle = ctx.createBufferSource()
+    whistle.buffer = makeNoise(ctx, 'pink', 6)
+    whistle.loop = true
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.value = 1200
+    bp.Q.value = 3
+    const wG = ctx.createGain()
+    wG.gain.value = 0.08
+    const wLfo = ctx.createOscillator()
+    wLfo.type = 'sine'
+    wLfo.frequency.value = 0.05
+    const wLfoG = ctx.createGain()
+    wLfoG.gain.value = 0.06
+    wLfo.connect(wLfoG).connect(wG.gain)
+    whistle.connect(bp).connect(wG).connect(master)
+
+    src.connect(lp).connect(ampMod).connect(master)
+
+    src.start()
+    whistle.start()
+    lfo1.start()
+    lfo2.start()
+    wLfo.start()
+
+    return {
+        ctx, gain: master,
+        stop: () => { ctx.close().catch(() => {}) },
+    }
+}
+
+function startCafe(vol: number): AmbientEngine {
+    const ctx = new AudioContext()
+    const master = ctx.createGain()
+    master.gain.value = vol
+    master.connect(ctx.destination)
+
+    // Layer 1: low crowd murmur (brown noise, bandpass around speech)
+    const murmur = ctx.createBufferSource()
+    murmur.buffer = makeNoise(ctx, 'brown', 6)
+    murmur.loop = true
+    const bp1 = ctx.createBiquadFilter()
+    bp1.type = 'bandpass'
+    bp1.frequency.value = 400
+    bp1.Q.value = 0.5
+    const g1 = ctx.createGain()
+    g1.gain.value = 0.5
+    murmur.connect(bp1).connect(g1).connect(master)
+
+    // Layer 2: speech-range chatter (pink noise, narrow bandpass)
+    const chatter = ctx.createBufferSource()
+    chatter.buffer = makeNoise(ctx, 'pink', 5)
+    chatter.loop = true
+    const bp2 = ctx.createBiquadFilter()
+    bp2.type = 'bandpass'
+    bp2.frequency.value = 1800
+    bp2.Q.value = 1.5
+    const g2 = ctx.createGain()
+    g2.gain.value = 0.07
+    // Modulate for natural conversation rhythm
+    const lfo = ctx.createOscillator()
+    lfo.type = 'sine'
+    lfo.frequency.value = 0.3
+    const lfoG = ctx.createGain()
+    lfoG.gain.value = 0.04
+    lfo.connect(lfoG).connect(g2.gain)
+    chatter.connect(bp2).connect(g2).connect(master)
+
+    // Layer 3: subtle clink/clatter texture (white noise, very high, very quiet)
+    const clink = ctx.createBufferSource()
+    clink.buffer = makeNoise(ctx, 'white', 3)
+    clink.loop = true
+    const hp3 = ctx.createBiquadFilter()
+    hp3.type = 'highpass'
+    hp3.frequency.value = 6000
+    const g3 = ctx.createGain()
+    g3.gain.value = 0.015
+    const lfo3 = ctx.createOscillator()
+    lfo3.type = 'sine'
+    lfo3.frequency.value = 0.5
+    const lfo3G = ctx.createGain()
+    lfo3G.gain.value = 0.01
+    lfo3.connect(lfo3G).connect(g3.gain)
+    clink.connect(hp3).connect(g3).connect(master)
+
+    murmur.start()
+    chatter.start()
+    clink.start()
+    lfo.start()
+    lfo3.start()
+
+    return {
+        ctx, gain: master,
+        stop: () => { ctx.close().catch(() => {}) },
+    }
+}
+
+function startWaves(vol: number): AmbientEngine {
+    const ctx = new AudioContext()
+    const master = ctx.createGain()
+    master.gain.value = vol
+    master.connect(ctx.destination)
+
+    // Ocean body: brown noise, low-passed
+    const ocean = ctx.createBufferSource()
+    ocean.buffer = makeNoise(ctx, 'brown', 8)
+    ocean.loop = true
+    const lp1 = ctx.createBiquadFilter()
+    lp1.type = 'lowpass'
+    lp1.frequency.value = 800
+
+    // Wave surge: slow deep amplitude modulation
+    const surge = ctx.createGain()
+    surge.gain.value = 0.5
+    const surgeLfo = ctx.createOscillator()
+    surgeLfo.type = 'sine'
+    surgeLfo.frequency.value = 0.1 // ~10s wave cycle
+    const surgeDepth = ctx.createGain()
+    surgeDepth.gain.value = 0.45
+    surgeLfo.connect(surgeDepth).connect(surge.gain)
+    ocean.connect(lp1).connect(surge).connect(master)
+
+    // Foam/wash layer: pink noise, higher freq, out-of-phase modulation
+    const foam = ctx.createBufferSource()
+    foam.buffer = makeNoise(ctx, 'pink', 6)
+    foam.loop = true
+    const bp = ctx.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.value = 3000
+    bp.Q.value = 0.4
+    const foamG = ctx.createGain()
+    foamG.gain.value = 0.08
+    const foamLfo = ctx.createOscillator()
+    foamLfo.type = 'sine'
+    foamLfo.frequency.value = 0.12
+    const foamDepth = ctx.createGain()
+    foamDepth.gain.value = 0.06
+    foamLfo.connect(foamDepth).connect(foamG.gain)
+    foam.connect(bp).connect(foamG).connect(master)
+
+    ocean.start()
+    foam.start()
+    surgeLfo.start()
+    foamLfo.start()
+
+    return {
+        ctx, gain: master,
+        stop: () => { ctx.close().catch(() => {}) },
+    }
+}
+
+const GENERATORS: Record<string, (vol: number) => AmbientEngine> = {
+    Rain: startRain,
+    Wind: startWind,
+    Cafe: startCafe,
+    Waves: startWaves,
+}
+
+// ─── Component ───
 
 export function LofiPlayer() {
     const [playing, setPlaying] = useState(false)
@@ -34,15 +323,21 @@ export function LofiPlayer() {
     const [stationIdx, setStationIdx] = useState(0)
     const [error, setError] = useState<string | null>(null)
     const [tab, setTab] = useState<'music' | 'ambiance'>('music')
-    const [ambiance, setAmbiance] = useState<Record<string, AmbianceState>>(() =>
-        Object.fromEntries(AMBIANCE.map((a) => [a.name, { playing: false, volume: 0.3, audio: null }]))
+
+    // Ambiance: UI state (playing flags + volumes) in useState, audio engines in ref
+    const [ambiancePlaying, setAmbiancePlaying] = useState<Record<string, boolean>>(() =>
+        Object.fromEntries(AMBIANCE_SOUNDS.map((a) => [a.name, false]))
     )
-    const [ambianceErrors, setAmbianceErrors] = useState<Record<string, boolean>>({})
+    const [ambianceVolumes, setAmbianceVolumes] = useState<Record<string, number>>(() =>
+        Object.fromEntries(AMBIANCE_SOUNDS.map((a) => [a.name, 0.3]))
+    )
+    const enginesRef = useRef<Record<string, AmbientEngine | null>>({})
+
     const audioRef = useRef<HTMLAudioElement | null>(null)
     const panelRef = useRef<HTMLDivElement>(null)
 
     const station = STATIONS[stationIdx]
-    const anyAmbiancePlaying = Object.values(ambiance).some((a) => a.playing)
+    const anyAmbiancePlaying = Object.values(ambiancePlaying).some(Boolean)
 
     // Rebuild audio when station changes
     const buildAudio = useCallback(() => {
@@ -59,12 +354,9 @@ export function LofiPlayer() {
 
     useEffect(() => {
         buildAudio()
-        return () => {
-            audioRef.current?.pause()
-        }
+        return () => { audioRef.current?.pause() }
     }, [buildAudio])
 
-    // Sync volume / mute
     useEffect(() => {
         if (audioRef.current) audioRef.current.volume = muted ? 0 : volume
     }, [volume, muted])
@@ -107,53 +399,37 @@ export function LofiPlayer() {
         }, 50)
     }
 
-    // Ambiance controls
+    // ─── Ambiance toggle (ref-based, no stale closures) ───
     const toggleAmbiance = (name: string) => {
-        setAmbiance((prev) => {
-            const state = prev[name]
-            if (state.playing) {
-                state.audio?.pause()
-                return { ...prev, [name]: { ...state, playing: false } }
-            } else {
-                const sound = AMBIANCE.find((a) => a.name === name)
-                if (!sound) return prev
-                let audio = state.audio
-                if (!audio) {
-                    audio = new Audio(sound.url)
-                    audio.crossOrigin = 'anonymous'
-                    audio.loop = true
-                    audio.volume = state.volume
-                    audio.onerror = () => {
-                        setAmbianceErrors((prev) => ({ ...prev, [name]: true }))
-                        toast.error(`Failed to load ${name} sound`)
-                        setAmbiance((prev) => ({ ...prev, [name]: { ...prev[name], playing: false } }))
-                    }
-                }
-                setAmbianceErrors((prev) => ({ ...prev, [name]: false }))
-                audio.play().catch(() => {
-                    setAmbianceErrors((prev) => ({ ...prev, [name]: true }))
-                    toast.error(`Could not play ${name} — audio unavailable`)
-                    setAmbiance((prev) => ({ ...prev, [name]: { ...prev[name], playing: false } }))
-                })
-                return { ...prev, [name]: { ...state, playing: true, audio } }
-            }
-        })
+        const engine = enginesRef.current[name]
+        if (engine) {
+            // STOP — kill the AudioContext immediately
+            engine.stop()
+            enginesRef.current[name] = null
+            setAmbiancePlaying((prev) => ({ ...prev, [name]: false }))
+        } else {
+            // START — create a fresh engine
+            const gen = GENERATORS[name]
+            if (!gen) return
+            const vol = ambianceVolumes[name] ?? 0.3
+            const newEngine = gen(vol)
+            enginesRef.current[name] = newEngine
+            setAmbiancePlaying((prev) => ({ ...prev, [name]: true }))
+        }
     }
 
-    const setAmbianceVolume = (name: string, vol: number) => {
-        setAmbiance((prev) => {
-            const state = prev[name]
-            if (state.audio) state.audio.volume = vol
-            return { ...prev, [name]: { ...state, volume: vol } }
-        })
+    const changeAmbianceVolume = (name: string, vol: number) => {
+        setAmbianceVolumes((prev) => ({ ...prev, [name]: vol }))
+        const engine = enginesRef.current[name]
+        if (engine) engine.gain.gain.value = vol
     }
 
-    // Cleanup ambiance on unmount
+    // Cleanup all engines on unmount
     useEffect(() => {
         return () => {
-            Object.values(ambiance).forEach((a) => a.audio?.pause())
+            Object.values(enginesRef.current).forEach((e) => e?.stop())
         }
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [])
 
     // Close panel on outside click
     useEffect(() => {
@@ -298,34 +574,32 @@ export function LofiPlayer() {
                                 <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
                                     Layer ambient sounds
                                 </p>
-                                {AMBIANCE.map((sound) => {
-                                    const state = ambiance[sound.name]
+                                {AMBIANCE_SOUNDS.map((sound) => {
+                                    const isPlaying = ambiancePlaying[sound.name]
+                                    const vol = ambianceVolumes[sound.name] ?? 0.3
                                     const Icon = sound.icon
                                     return (
                                         <div key={sound.name} className="space-y-1.5">
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => toggleAmbiance(sound.name)}
-                                                    className={cn(
-                                                        'flex items-center gap-2 flex-1 text-xs px-2.5 py-1.5 rounded-lg transition-colors text-left',
-                                                        state.playing
-                                                            ? 'bg-primary/10 text-primary font-medium'
-                                                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                                                        ambianceErrors[sound.name] && 'opacity-60'
-                                                    )}
-                                                >
-                                                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                                                    {sound.name}
-                                                </button>
-                                                {ambianceErrors[sound.name] && (
-                                                    <span className="text-[10px] text-destructive shrink-0">unavailable</span>
+                                            <button
+                                                onClick={() => toggleAmbiance(sound.name)}
+                                                className={cn(
+                                                    'flex items-center gap-2 w-full text-xs px-2.5 py-1.5 rounded-lg transition-colors text-left',
+                                                    isPlaying
+                                                        ? 'bg-primary/10 text-primary font-medium'
+                                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                                                 )}
-                                            </div>
-                                            {state.playing && (
+                                            >
+                                                <Icon className="h-3.5 w-3.5 shrink-0" />
+                                                <span className="flex-1">{sound.name}</span>
+                                                {isPlaying && (
+                                                    <Square className="h-3 w-3 fill-current opacity-60" />
+                                                )}
+                                            </button>
+                                            {isPlaying && (
                                                 <input
                                                     type="range" min={0} max={1} step={0.02}
-                                                    value={state.volume}
-                                                    onChange={(e) => setAmbianceVolume(sound.name, Number(e.target.value))}
+                                                    value={vol}
+                                                    onChange={(e) => changeAmbianceVolume(sound.name, Number(e.target.value))}
                                                     className="w-full h-1 rounded-full appearance-none cursor-pointer bg-border
                                                         [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-2.5
                                                         [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:rounded-full
@@ -336,7 +610,7 @@ export function LofiPlayer() {
                                     )
                                 })}
                                 <p className="text-[9px] text-muted-foreground text-center opacity-60">
-                                    sounds from freesound.org
+                                    procedurally generated ambient sounds
                                 </p>
                             </div>
                         )}
