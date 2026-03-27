@@ -48,8 +48,7 @@ begin
 end;
 $$;
 
--- Index for fast vector similarity lookups
+-- Index for fast vector similarity lookups (HNSW supports >2000 dimensions, IVFFlat does not)
 create index if not exists feature_requests_embedding_idx
   on feature_requests
-  using ivfflat (embedding vector_cosine_ops)
-  with (lists = 100);
+  using hnsw (embedding vector_cosine_ops);
