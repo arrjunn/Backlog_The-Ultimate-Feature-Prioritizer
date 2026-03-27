@@ -83,6 +83,7 @@ export default function BacklogPage() {
     const [semanticQuery, setSemanticQuery] = useState('')
     const [semanticResults, setSemanticResults] = useState<{ id: string; title: string; description: string | null; status: string; similarity: number }[]>([])
     const [semanticLoading, setSemanticLoading] = useState(false)
+    const [semanticError, setSemanticError] = useState(false)
     const semanticTimeout = useRef<NodeJS.Timeout | null>(null)
 
     const supabase = createClient()
@@ -101,30 +102,40 @@ export default function BacklogPage() {
         },
     })
 
-    // semantic search with debounce
+    // semantic search with debounce + AbortController for race condition safety
     useEffect(() => {
         if (!semanticQuery.trim() || !workspace) {
             setSemanticResults([])
+            setSemanticError(false)
             return
         }
+        const controller = new AbortController()
         if (semanticTimeout.current) clearTimeout(semanticTimeout.current)
         semanticTimeout.current = setTimeout(async () => {
             setSemanticLoading(true)
+            setSemanticError(false)
             try {
                 const res = await fetch('/api/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: semanticQuery, workspaceId: workspace.id })
+                    body: JSON.stringify({ query: semanticQuery, workspaceId: workspace.id }),
+                    signal: controller.signal,
                 })
                 const data = await res.json()
                 setSemanticResults(data.results || [])
-            } catch {
+            } catch (err) {
+                if (err instanceof Error && err.name === 'AbortError') return
                 setSemanticResults([])
+                setSemanticError(true)
                 toast.error('Semantic search failed — try again')
             } finally {
-                setSemanticLoading(false)
+                if (!controller.signal.aborted) setSemanticLoading(false)
             }
         }, 600)
+        return () => {
+            controller.abort()
+            if (semanticTimeout.current) clearTimeout(semanticTimeout.current)
+        }
     }, [semanticQuery, workspace])
 
     // Real-time subscription
@@ -292,7 +303,7 @@ export default function BacklogPage() {
                 </div>
                 {isSemanticMode && (
                     <p className="text-[11px] text-muted-foreground mt-1.5 ml-1">
-                        {semanticLoading ? 'Searching...' : `${semanticResults.length} semantically similar result${semanticResults.length !== 1 ? 's' : ''}`}
+                        {semanticLoading ? 'Searching...' : semanticError ? 'Search unavailable — try again later' : `${semanticResults.length} semantically similar result${semanticResults.length !== 1 ? 's' : ''}`}
                     </p>
                 )}
             </div>

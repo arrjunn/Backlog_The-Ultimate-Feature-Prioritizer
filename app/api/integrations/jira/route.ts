@@ -1,35 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRoute } from '@/lib/supabase/api-auth'
 import { getErrorMessage } from '@/lib/utils/shared'
+import { z } from 'zod'
+
+const JiraSchema = z.object({
+    jiraUrl: z.string().url().refine(url => {
+        try {
+            const u = new URL(url)
+            return u.protocol === 'https:' && (u.hostname.endsWith('.atlassian.net') || u.hostname.endsWith('.jira.com'))
+        } catch { return false }
+    }, 'Must be an HTTPS Atlassian domain'),
+    email: z.string().email(),
+    apiToken: z.string().min(1).max(500),
+    projectKey: z.string().min(1).max(20),
+    request: z.object({
+        title: z.string().min(1).max(500),
+        description: z.string().max(5000).optional().nullable(),
+        rice_score: z.number().optional().nullable(),
+        ice_score: z.number().optional().nullable(),
+        wsjf_score: z.number().optional().nullable(),
+        moscow_category: z.string().optional().nullable(),
+        tags: z.array(z.string()).optional().nullable(),
+        status: z.string().optional().nullable(),
+    }),
+})
 
 export async function POST(req: NextRequest) {
     const auth = await authenticateApiRoute()
     if (auth.error) return auth.error
 
     try {
-        const { jiraUrl, email, apiToken, projectKey, request } = await req.json()
-
-        if (!jiraUrl || !email || !apiToken || !projectKey || !request?.title) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+        const body = await req.json()
+        const parsed = JiraSchema.safeParse(body)
+        if (!parsed.success) {
+            return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid input' }, { status: 400 })
         }
 
-        // SSRF protection: only allow Atlassian domains
-        try {
-            const url = new URL(jiraUrl)
-            if (!url.hostname.endsWith('.atlassian.net') && !url.hostname.endsWith('.jira.com')) {
-                return NextResponse.json({ error: 'Invalid Jira URL — must be an Atlassian domain' }, { status: 400 })
-            }
-            if (url.protocol !== 'https:') {
-                return NextResponse.json({ error: 'Jira URL must use HTTPS' }, { status: 400 })
-            }
-        } catch {
-            return NextResponse.json({ error: 'Invalid Jira URL' }, { status: 400 })
-        }
+        const { jiraUrl, email, apiToken, projectKey, request } = parsed.data
 
         const base = jiraUrl.replace(/\/$/, '')
         const authHeader = Buffer.from(`${email}:${apiToken}`).toString('base64')
 
-        const body: Record<string, unknown> = {
+        const payload: Record<string, unknown> = {
             fields: {
                 project: { key: projectKey.toUpperCase() },
                 summary: request.title,
@@ -52,7 +64,7 @@ export async function POST(req: NextRequest) {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify(payload),
             signal: controller.signal,
         })
         clearTimeout(timeout)

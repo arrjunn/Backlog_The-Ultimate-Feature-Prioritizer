@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRoute } from '@/lib/supabase/api-auth'
 import { getErrorMessage } from '@/lib/utils/shared'
+import { z } from 'zod'
+
+const LinearSchema = z.object({
+    apiKey: z.string().min(1).max(500),
+    teamId: z.string().min(1).max(100),
+    request: z.object({
+        title: z.string().min(1).max(500),
+        description: z.string().max(5000).optional().nullable(),
+        rice_score: z.number().optional().nullable(),
+        ice_score: z.number().optional().nullable(),
+        wsjf_score: z.number().optional().nullable(),
+        tags: z.array(z.string()).optional().nullable(),
+        status: z.string().optional().nullable(),
+    }),
+})
 
 export async function POST(req: NextRequest) {
     // Auth check
@@ -8,11 +23,13 @@ export async function POST(req: NextRequest) {
     if (auth.error) return auth.error
 
     try {
-        const { apiKey, teamId, request } = await req.json()
-
-        if (!apiKey || !teamId || !request?.title) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+        const body = await req.json()
+        const parsed = LinearSchema.safeParse(body)
+        if (!parsed.success) {
+            return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid input' }, { status: 400 })
         }
+
+        const { apiKey, teamId, request } = parsed.data
 
         // Linear uses GraphQL
         const mutation = `

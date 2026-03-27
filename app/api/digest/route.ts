@@ -5,11 +5,16 @@ import { escapeHtml } from '@/lib/utils/shared'
 const RESEND_URL = 'https://api.resend.com/emails'
 
 function markdownToHtml(text: string): string {
-    return text
+    const escaped = escapeHtml(text)
+    return escaped
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/^- (.+)$/gm, '<li>$1</li>')
         .replace(/(<li>[\s\S]*<\/li>)/, '<ul style="padding-left:16px;margin:8px 0;">$1</ul>')
         .replace(/\n/g, '<br>')
+}
+
+function sanitizeForPrompt(text: string): string {
+    return text.replace(/[^\w\s.,!?;:'"()\-]/g, '').slice(0, 200)
 }
 
 export async function GET(req: NextRequest) {
@@ -114,12 +119,12 @@ export async function GET(req: NextRequest) {
                         input_type: 'chat',
                         output_type: 'chat',
                         input_value: `
-Workspace: ${ws.name}
+Workspace: ${sanitizeForPrompt(ws.name)}
 New requests this week: ${newRequests || 0}
 Shipped this week: ${shipped || 0}
 New votes this week: ${newVotes}
 New comments this week: ${newComments}
-Top requests: ${(topRequests || []).map((r: any) => r.title).join(', ')}
+Top requests: ${(topRequests || []).map((r: any) => sanitizeForPrompt(r.title)).join(', ')}
                         `.trim(),
                     }),
                     signal: langflowController.signal,

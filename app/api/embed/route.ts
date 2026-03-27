@@ -11,8 +11,8 @@ export async function POST(req: NextRequest) {
     try {
         const { id, text } = await req.json()
         if (!id || !text) return NextResponse.json({ error: 'Missing id or text' }, { status: 400 })
-        if (typeof text !== 'string' || text.length > 10000) {
-            return NextResponse.json({ error: 'Text too long (max 10,000 chars)' }, { status: 400 })
+        if (typeof text !== 'string' || text.length > 5000) {
+            return NextResponse.json({ error: 'Text too long (max 5,000 chars)' }, { status: 400 })
         }
 
         const supabase = createClient(

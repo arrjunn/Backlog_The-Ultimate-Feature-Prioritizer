@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRoute } from '@/lib/supabase/api-auth'
 import { getErrorMessage } from '@/lib/utils/shared'
+import { z } from 'zod'
+
+const NotionSchema = z.object({
+    apiKey: z.string().min(1).max(500),
+    databaseId: z.string().min(1).max(100),
+    request: z.object({
+        title: z.string().min(1).max(500),
+        description: z.string().max(5000).optional().nullable(),
+        status: z.string().optional().nullable(),
+        rice_score: z.number().optional().nullable(),
+        tags: z.array(z.string()).optional().nullable(),
+    }),
+})
 
 export async function POST(req: NextRequest) {
     // Auth check
@@ -8,11 +21,13 @@ export async function POST(req: NextRequest) {
     if (auth.error) return auth.error
 
     try {
-        const { apiKey, databaseId, request } = await req.json()
-
-        if (!apiKey || !databaseId || !request?.title) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+        const body = await req.json()
+        const parsed = NotionSchema.safeParse(body)
+        if (!parsed.success) {
+            return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid input' }, { status: 400 })
         }
+
+        const { apiKey, databaseId, request } = parsed.data
 
         // Build Notion page properties
         const properties: Record<string, unknown> = {
