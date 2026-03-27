@@ -5,6 +5,10 @@ create extension if not exists vector with schema extensions;
 alter table feature_requests
   add column if not exists embedding vector(3072);
 
+-- Drop existing function if signature differs (safe — immediately recreated below)
+drop function if exists match_requests(vector, float, int, uuid);
+drop function if exists match_requests(vector, double precision, integer, uuid);
+
 -- Create similarity search function used by semantic search API
 create or replace function match_requests(
   query_embedding vector(3072),
