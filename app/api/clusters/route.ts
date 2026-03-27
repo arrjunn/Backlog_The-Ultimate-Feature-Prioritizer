@@ -50,7 +50,8 @@ export async function POST(req: NextRequest) {
             .not('embedding', 'is', null)
 
         if (fetchError) {
-            return NextResponse.json({ error: 'Failed to fetch requests' }, { status: 500 })
+            console.error('Cluster fetch error:', fetchError)
+            return NextResponse.json({ error: `Failed to fetch requests: ${fetchError.message}` }, { status: 500 })
         }
 
         const embedded = requests || []
@@ -168,6 +169,7 @@ export async function POST(req: NextRequest) {
         })
     } catch (err) {
         console.error('Cluster error:', err)
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+        const message = err instanceof Error ? err.message : 'Internal server error'
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }

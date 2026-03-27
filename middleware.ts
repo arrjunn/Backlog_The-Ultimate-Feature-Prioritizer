@@ -49,7 +49,7 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith('/api/digest') ||
         pathname.startsWith('/api/backfill-embeddings')
 
-    // Redirect unauthenticated users away from protected routes
+    // Redirect unauthenticated users away from protected routesvscode-webview://15v1jo83ju7pf6fq1uji1suohhchk95ehgk5178sdd2tjlk1jlqq/supabase/migrations/20260327000000_add_embeddings.sql
     if (!user && !isPublicRoute) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
