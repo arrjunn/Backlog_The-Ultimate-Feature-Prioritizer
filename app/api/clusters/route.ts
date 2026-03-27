@@ -13,16 +13,19 @@ export async function POST(req: NextRequest) {
     const auth = await authenticateApiRoute()
     if (auth.error) return auth.error
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!supabaseUrl || !supabaseKey) {
+        return NextResponse.json({ error: 'Supabase env vars not configured' }, { status: 500 })
+    }
+
     try {
         const { workspaceId, k: requestedK } = await req.json()
         if (!workspaceId || typeof workspaceId !== 'string') {
             return NextResponse.json({ error: 'Missing workspaceId' }, { status: 400 })
         }
 
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        )
+        const supabase = createClient(supabaseUrl, supabaseKey)
 
         // Verify workspace membership
         const { data: membership } = await supabase
