@@ -426,8 +426,9 @@ export function LofiPlayer() {
 
     // Cleanup all engines on unmount
     useEffect(() => {
+        const engines = enginesRef.current
         return () => {
-            Object.values(enginesRef.current).forEach((e) => e?.stop())
+            Object.values(engines).forEach((e) => e?.stop())
         }
     }, [])
 
