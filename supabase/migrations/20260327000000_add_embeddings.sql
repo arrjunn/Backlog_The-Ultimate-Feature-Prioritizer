@@ -48,7 +48,6 @@ begin
 end;
 $$;
 
--- Index for fast vector similarity lookups (HNSW supports >2000 dimensions, IVFFlat does not)
-create index if not exists feature_requests_embedding_idx
-  on feature_requests
-  using hnsw (embedding vector_cosine_ops);
+-- Note: pgvector IVFFlat and HNSW indexes both cap at 2000 dimensions.
+-- With 3072-dim embeddings, we rely on exact (brute-force) search which is
+-- performant for typical feature request volumes (<10k rows).
