@@ -21,7 +21,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Heart, Tag, GripVertical, Package, Inbox } from 'lucide-react'
-import confetti from 'canvas-confetti'
+// canvas-confetti is lazy-loaded on first use to keep initial bundle lean
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { createUntypedClient } from '@/lib/supabase/untyped-client'
@@ -216,7 +216,7 @@ export default function BoardPage() {
         queryFn: async () => {
             const { data } = await supabase
                 .from('feature_requests')
-                .select('*, profiles(*), votes(id, user_id)')
+                .select('*, profiles(id, full_name, avatar_url), votes(id, user_id)')
                 .eq('workspace_id', workspace!.id)
                 .order('rice_score', { ascending: false })
             return (data || []) as RequestWithDetails[]
@@ -289,13 +289,15 @@ export default function BoardPage() {
         } else {
             toast.success(`Moved to ${STATUS_CONFIG[newStatus].label}`)
             if (newStatus === 'shipped') {
-                const end = Date.now() + 600
-                const frame = () => {
-                    confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } })
-                    confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } })
-                    if (Date.now() < end) requestAnimationFrame(frame)
-                }
-                frame()
+                import('canvas-confetti').then(({ default: confetti }) => {
+                    const end = Date.now() + 600
+                    const frame = () => {
+                        confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0, y: 0.7 } })
+                        confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1, y: 0.7 } })
+                        if (Date.now() < end) requestAnimationFrame(frame)
+                    }
+                    frame()
+                })
             }
         }
     }

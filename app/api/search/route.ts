@@ -14,6 +14,9 @@ export async function POST(req: NextRequest) {
         if (typeof query !== 'string' || query.length > 500) {
             return NextResponse.json({ error: 'Query too long (max 500 chars)' }, { status: 400 })
         }
+        if (typeof workspaceId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workspaceId)) {
+            return NextResponse.json({ error: 'Invalid workspaceId' }, { status: 400 })
+        }
 
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,

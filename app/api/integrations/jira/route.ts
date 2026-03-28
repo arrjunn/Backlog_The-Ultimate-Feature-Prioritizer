@@ -70,8 +70,9 @@ export async function POST(req: NextRequest) {
         clearTimeout(timeout)
 
         if (!res.ok) {
-            const err = await res.json()
-            const msg = err.errors ? JSON.stringify(err.errors) : (err.errorMessages?.[0] ?? JSON.stringify(err))
+            let err: Record<string, unknown>
+            try { err = await res.json() } catch { return NextResponse.json({ error: `HTTP ${res.status}` }, { status: res.status }) }
+            const msg = err.errors ? JSON.stringify(err.errors) : ((err.errorMessages as string[])?.[0] ?? JSON.stringify(err))
             return NextResponse.json({ error: msg }, { status: res.status })
         }
 

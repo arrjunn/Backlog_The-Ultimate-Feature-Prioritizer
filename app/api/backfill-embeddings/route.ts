@@ -53,7 +53,12 @@ export async function POST(req: NextRequest) {
                 )
                 clearTimeout(timeout)
 
-                const data = await res.json()
+                let data: { embedding?: { values?: number[] } }
+                try { data = await res.json() } catch {
+                    console.error(`Failed to parse embedding response for ${item.id}`)
+                    failCount++
+                    continue
+                }
                 const embedding = data?.embedding?.values
 
                 if (!embedding) {

@@ -65,11 +65,13 @@ export async function POST(req: NextRequest) {
         clearTimeout(timeout)
 
         if (!res.ok) {
-            const errText = await res.text()
+            let errText = `HTTP ${res.status}`
+            try { errText = await res.text() } catch { /* use default */ }
             return NextResponse.json({ error: errText }, { status: res.status })
         }
 
-        const json = await res.json()
+        let json: { errors?: { message: string }[]; data?: { issueCreate?: { issue?: { url?: string; id?: string } } } }
+        try { json = await res.json() } catch { return NextResponse.json({ error: 'Invalid response from Linear API' }, { status: 500 }) }
         if (json.errors?.length) {
             return NextResponse.json({ error: json.errors[0].message }, { status: 400 })
         }

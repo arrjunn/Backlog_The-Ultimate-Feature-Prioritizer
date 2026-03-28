@@ -95,7 +95,7 @@ export default function BacklogPage() {
         queryFn: async () => {
             const { data } = await supabase
                 .from('feature_requests')
-                .select('*, profiles(*), votes(id, user_id)')
+                .select('*, profiles(id, full_name, avatar_url), votes(id, user_id)')
                 .eq('workspace_id', workspace!.id)
                 .order('created_at', { ascending: false })
             return (data || []) as (FeatureRequest & { profiles: Profile | null; votes: { id: string; user_id: string }[] })[]

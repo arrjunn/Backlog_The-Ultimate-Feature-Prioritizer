@@ -59,13 +59,13 @@ export async function GET(req: NextRequest) {
 
             const { count: newRequests } = await supabase
                 .from('feature_requests')
-                .select('*', { count: 'exact', head: true })
+                .select('id', { count: 'exact', head: true })
                 .eq('workspace_id', ws.id)
                 .gte('created_at', sevenDaysAgo)
 
             const { count: shipped } = await supabase
                 .from('feature_requests')
-                .select('*', { count: 'exact', head: true })
+                .select('id', { count: 'exact', head: true })
                 .eq('workspace_id', ws.id)
                 .eq('status', 'shipped')
                 .gte('shipped_at', sevenDaysAgo)
@@ -81,14 +81,14 @@ export async function GET(req: NextRequest) {
                 const reqIds = weekRequests.map((r) => r.id)
                 const { count: voteCount } = await supabase
                     .from('votes')
-                    .select('*', { count: 'exact', head: true })
+                    .select('id', { count: 'exact', head: true })
                     .in('feature_request_id', reqIds)
                     .gte('created_at', sevenDaysAgo)
                 newVotes = voteCount || 0
 
                 const { count: commentCount } = await supabase
                     .from('comments')
-                    .select('*', { count: 'exact', head: true })
+                    .select('id', { count: 'exact', head: true })
                     .in('feature_request_id', reqIds)
                     .gte('created_at', sevenDaysAgo)
                 newComments = commentCount || 0

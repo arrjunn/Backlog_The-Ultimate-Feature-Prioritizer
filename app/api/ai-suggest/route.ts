@@ -124,8 +124,12 @@ export async function POST(req: NextRequest) {
     try {
         const { title, description, framework } = await req.json()
 
+        const ALLOWED_FRAMEWORKS = ['rice', 'ice', 'moscow', 'jtbd', 'kano', 'impact_effort', 'wsjf']
         if (!title || !framework) {
             return NextResponse.json({ error: 'title and framework are required' }, { status: 400 })
+        }
+        if (typeof framework !== 'string' || !ALLOWED_FRAMEWORKS.includes(framework)) {
+            return NextResponse.json({ error: `Invalid framework. Must be one of: ${ALLOWED_FRAMEWORKS.join(', ')}` }, { status: 400 })
         }
         if (typeof title !== 'string' || title.length > 500) {
             return NextResponse.json({ error: 'Title too long (max 500 chars)' }, { status: 400 })

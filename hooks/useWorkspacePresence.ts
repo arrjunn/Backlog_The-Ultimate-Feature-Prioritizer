@@ -55,10 +55,14 @@ export function useWorkspacePresence(workspaceId: string | undefined, currentUse
             })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED' && currentUser) {
-                    await channel.track({
-                        ...currentUser,
-                        onlineAt: new Date().toISOString(),
-                    })
+                    try {
+                        await channel.track({
+                            ...currentUser,
+                            onlineAt: new Date().toISOString(),
+                        })
+                    } catch (err) {
+                        console.debug('Presence track failed:', err instanceof Error ? err.message : err)
+                    }
                 }
             })
 

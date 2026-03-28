@@ -74,7 +74,8 @@ export async function POST(req: NextRequest) {
         clearTimeout(timeout)
 
         if (!res.ok) {
-            const err = await res.json()
+            let err: { message?: string }
+            try { err = await res.json() } catch { return NextResponse.json({ error: `HTTP ${res.status}` }, { status: res.status }) }
             return NextResponse.json({ error: err.message ?? JSON.stringify(err) }, { status: res.status })
         }
 

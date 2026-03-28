@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
         if (!workspaceId || typeof workspaceId !== 'string') {
             return NextResponse.json({ error: 'Missing workspaceId' }, { status: 400 })
         }
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workspaceId)) {
+            return NextResponse.json({ error: 'Invalid workspaceId' }, { status: 400 })
+        }
 
         const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -67,10 +70,12 @@ export async function POST(req: NextRequest) {
             }, { status: 422 })
         }
 
-        // Get vote counts
+        // Get vote counts scoped to this workspace's requests (avoids full table scan)
+        const reqIds = embedded.map((r) => r.id)
         const { data: voteCounts } = await supabase
             .from('votes')
             .select('feature_request_id')
+            .in('feature_request_id', reqIds)
 
         const voteMap = new Map<string, number>()
         for (const v of voteCounts || []) {

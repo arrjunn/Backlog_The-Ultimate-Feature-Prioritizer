@@ -67,6 +67,7 @@ export function RequestSlideOver({
     onClose,
 }: RequestSlideOverProps) {
     const [comment, setComment] = useState('')
+    const [isPostingComment, setIsPostingComment] = useState(false)
     const [isVoting, setIsVoting] = useState(false)
     const [aiLoading, setAiLoading] = useState(false)
     const [aiSuggestion, setAiSuggestion] = useState<Record<string, string | number> | null>(null)
@@ -282,8 +283,9 @@ export function RequestSlideOver({
     }
 
     const handlePostComment = async () => {
-        if (!comment.trim() || !currentUser || !requestId) return
+        if (!comment.trim() || !currentUser || !requestId || isPostingComment) return
         const commentContent = comment.trim()
+        setIsPostingComment(true)
 
         const { error } = await supabaseRaw.from('comments').insert({
             feature_request_id: requestId,
@@ -291,6 +293,7 @@ export function RequestSlideOver({
             content: commentContent,
         })
 
+        setIsPostingComment(false)
         if (error) {
             toast.error('Failed to post comment')
             return
@@ -812,10 +815,11 @@ export function RequestSlideOver({
                         <Button
                             size="icon"
                             onClick={handlePostComment}
-                            disabled={!comment.trim() || isViewer}
+                            disabled={!comment.trim() || isViewer || isPostingComment}
                             className="shrink-0 self-end"
+                            aria-label="Post comment"
                         >
-                            <Send className="h-4 w-4" />
+                            {isPostingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         </Button>
                     </div>
                     {!isViewer && <p className="text-xs text-muted-foreground mt-1">Press Ctrl+Enter to submit</p>}
