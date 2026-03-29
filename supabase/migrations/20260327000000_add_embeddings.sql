@@ -21,7 +21,6 @@ returns table (
   title text,
   description text,
   status text,
-  category text,
   rice_score float,
   created_at timestamptz,
   similarity float
@@ -35,7 +34,6 @@ begin
     fr.title,
     fr.description,
     fr.status,
-    fr.category,
     fr.rice_score::float,
     fr.created_at,
     1 - (fr.embedding <=> query_embedding) as similarity
