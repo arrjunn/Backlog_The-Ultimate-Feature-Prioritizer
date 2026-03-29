@@ -122,6 +122,7 @@ export default function BacklogPage() {
                     signal: controller.signal,
                 })
                 const data = await res.json()
+                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
                 setSemanticResults(data.results || [])
             } catch (err) {
                 if (err instanceof Error && err.name === 'AbortError') return

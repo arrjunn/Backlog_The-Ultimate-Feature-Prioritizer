@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         // Search supabase for similar requests
         const { data: results, error } = await supabase.rpc('match_requests', {
             query_embedding: embedding,
-            match_threshold: 0.6,
+            match_threshold: 0.3,
             match_count: 5,
             p_workspace_id: workspaceId
         })
