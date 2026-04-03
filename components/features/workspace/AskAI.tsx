@@ -83,7 +83,7 @@ export function AskAI({ open, onOpenChange }: AskAIProps) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(v) => { if (!v) setLoading(false); onOpenChange(v) }}>
             <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
                 <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
                     <DialogTitle className="flex items-center gap-2 text-sm font-semibold">

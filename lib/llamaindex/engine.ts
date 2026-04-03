@@ -1,4 +1,4 @@
-import { RetrieverQueryEngine, Settings, PromptTemplate, getResponseSynthesizer } from 'llamaindex'
+import { RetrieverQueryEngine, PromptTemplate, getResponseSynthesizer } from 'llamaindex'
 import { Gemini, GEMINI_MODEL } from '@llamaindex/google'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { BacklogRetriever } from './retriever'
@@ -33,13 +33,16 @@ export function createAskEngine(options: CreateAskEngineOptions) {
         matchCount: 12,
     })
 
-    Settings.llm = new Gemini({
+    // Pass LLM directly to the synthesizer — avoids mutating the global Settings singleton
+    // which would cause race conditions with concurrent requests
+    const llm = new Gemini({
         model: GEMINI_MODEL.GEMINI_2_0_FLASH,
         apiKey: process.env.GOOGLE_API_KEY!,
         temperature: 0.3,
     })
 
     const responseSynthesizer = getResponseSynthesizer('compact', {
+        llm,
         textQATemplate: TEXT_QA_PROMPT,
     })
 

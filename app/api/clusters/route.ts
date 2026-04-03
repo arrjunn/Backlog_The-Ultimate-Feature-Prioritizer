@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
         })
     } catch (err) {
         console.error('Cluster error:', err)
-        const message = err instanceof Error ? err.message : 'Internal server error'
-        return NextResponse.json({ error: message }, { status: 500 })
+        console.error('Cluster error:', err)
+        return NextResponse.json({ error: 'Clustering failed' }, { status: 500 })
     }
 }

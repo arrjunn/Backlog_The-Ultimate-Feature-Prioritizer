@@ -1,4 +1,4 @@
-import { BaseRetriever, TextNode } from 'llamaindex'
+import { BaseRetriever, TextNode, type NodeWithScore } from 'llamaindex'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { MatchedRequest } from '@/types/ask.types'
 
@@ -28,7 +28,7 @@ export class BacklogRetriever extends BaseRetriever {
         this.matchCount = options.matchCount ?? 12
     }
 
-    async _retrieve(params: { query: string }): Promise<{ node: TextNode; score?: number }[]> {
+    async _retrieve(params: { query: string }): Promise<NodeWithScore[]> {
         // 1. Embed the question using the same Google API as app/api/search/route.ts
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 15000)

@@ -45,12 +45,11 @@ export async function POST(req: NextRequest) {
         const response = await engine.query({ query: question })
 
         return NextResponse.json({
-            answer: response.message.content.toString(),
+            answer: response.toString(),
             sources: retriever.lastSources,
         })
     } catch (err) {
         console.error('Ask error:', err)
-        const message = err instanceof Error ? err.message : 'Failed to answer question'
-        return NextResponse.json({ error: message }, { status: 500 })
+        return NextResponse.json({ error: 'Failed to answer question' }, { status: 500 })
     }
 }
