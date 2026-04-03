@@ -471,16 +471,37 @@ export default function BacklogPage() {
                                             onClick={() => setSelectedRequestId(req.id)}
                                         >
                                             <td className="px-4 py-3">
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <span className="font-medium line-clamp-1 cursor-default">{req.title}</span>
-                                                    </TooltipTrigger>
-                                                    {req.description && (
-                                                        <TooltipContent side="bottom" align="start" className="max-w-xs">
-                                                            <p className="text-xs leading-relaxed line-clamp-4">{req.description}</p>
-                                                        </TooltipContent>
-                                                    )}
-                                                </Tooltip>
+                                                <div className="flex items-center gap-2">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span className="font-medium line-clamp-1 cursor-default">{req.title}</span>
+                                                        </TooltipTrigger>
+                                                        {req.description && (
+                                                            <TooltipContent side="bottom" align="start" className="max-w-xs">
+                                                                <p className="text-xs leading-relaxed line-clamp-4">{req.description}</p>
+                                                            </TooltipContent>
+                                                        )}
+                                                    </Tooltip>
+                                                    {(() => {
+                                                        const r = req as unknown as Record<string, string | null>
+                                                        if (!r.category) return null
+                                                        return <span className={cn('shrink-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider border', {
+                                                            'border-red-500/30 text-red-500 bg-red-500/10': r.category === 'bug',
+                                                            'border-blue-500/30 text-blue-500 bg-blue-500/10': r.category === 'feature',
+                                                            'border-amber-500/30 text-amber-500 bg-amber-500/10': r.category === 'improvement',
+                                                            'border-purple-500/30 text-purple-500 bg-purple-500/10': r.category === 'question',
+                                                        })}>{r.category}</span>
+                                                    })()}
+                                                    {(() => {
+                                                        const r = req as unknown as Record<string, string | null>
+                                                        if (!r.priority) return null
+                                                        return <span className={cn('shrink-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider border', {
+                                                            'border-red-500/30 text-red-500': r.priority === 'high',
+                                                            'border-yellow-500/30 text-yellow-500': r.priority === 'medium',
+                                                            'border-gray-500/30 text-gray-400': r.priority === 'low',
+                                                        })}>{r.priority}</span>
+                                                    })()}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold', statusCfg.color)}>

@@ -76,6 +76,17 @@ export async function POST(req: NextRequest) {
 
         if (error) throw error
 
+        // Trigger auto-triage in the background (non-blocking)
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+        fetch(`${siteUrl}/api/triage`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-internal-secret': process.env.CRON_SECRET || '',
+            },
+            body: JSON.stringify({ requestId: id }),
+        }).catch((e) => console.error('Triage trigger failed:', e))
+
         return NextResponse.json({ success: true })
     } catch (err) {
         console.error('Embed error:', err)
