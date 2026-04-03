@@ -98,32 +98,34 @@ export async function POST(req: NextRequest) {
             })
         }
 
-        // Step 4: Call Gemini to synthesize an answer
+        // Step 4: Call Groq LLM to synthesize an answer
         const llmController = new AbortController()
         const llmTimeout = setTimeout(() => llmController.abort(), 30000)
 
-        const llmRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-                    contents: [{
-                        parts: [{ text: `Feature request data:\n${context}\n\nQuestion: ${question}` }],
-                    }],
-                    generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
-                }),
-                signal: llmController.signal,
-            }
-        )
+        const llmRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [
+                    { role: 'system', content: SYSTEM_PROMPT },
+                    { role: 'user', content: `Feature request data:\n${context}\n\nQuestion: ${question}` },
+                ],
+                temperature: 0.3,
+                max_tokens: 1024,
+            }),
+            signal: llmController.signal,
+        })
         clearTimeout(llmTimeout)
 
         const llmData = await llmRes.json()
-        const answer = llmData?.candidates?.[0]?.content?.parts?.[0]?.text
+        const answer = llmData?.choices?.[0]?.message?.content
 
         if (!answer) {
-            console.error('No answer from Gemini:', JSON.stringify(llmData).slice(0, 500))
+            console.error('No answer from Groq:', JSON.stringify(llmData).slice(0, 500))
             return NextResponse.json({ error: 'Failed to generate answer' }, { status: 500 })
         }
 
