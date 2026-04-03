@@ -149,8 +149,8 @@ export function AskAI({ open, onOpenChange }: AskAIProps) {
 
                     {/* Answer */}
                     {answer && (
-                        <div className="flex-1 overflow-hidden flex flex-col">
-                            <ScrollArea className="flex-1 px-5">
+                        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                            <ScrollArea className="max-h-[400px] px-5">
                                 <div className="py-3">
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Answer</p>
                                     <div className="text-sm leading-relaxed whitespace-pre-wrap">
