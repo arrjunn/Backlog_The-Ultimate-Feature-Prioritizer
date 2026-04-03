@@ -5,7 +5,7 @@ const nextConfig = {
         ignoreBuildErrors: false,
     },
     experimental: {
-        optimizePackageImports: ['lucide-react', 'recharts', '@dnd-kit/core', '@dnd-kit/sortable', 'sonner', 'llamaindex'],
+        optimizePackageImports: ['lucide-react', 'recharts', '@dnd-kit/core', '@dnd-kit/sortable', 'sonner'],
     },
     images: {
         remotePatterns: [
