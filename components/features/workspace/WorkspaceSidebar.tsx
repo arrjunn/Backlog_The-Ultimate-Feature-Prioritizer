@@ -21,6 +21,7 @@ import {
     BookOpen,
     Command,
     ArrowLeft,
+    Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -42,6 +43,7 @@ import {
 import { cn } from '@/lib/utils/cn'
 import { RequestSlideOver } from '@/components/features/requests/RequestSlideOver'
 import { LofiPlayer } from './LofiPlayer'
+import { AskAI } from './AskAI'
 import { ActivityFeed } from './ActivityFeed'
 import { useWorkspace } from '@/app/workspace/[slug]/WorkspaceLayoutClient'
 import { Profile, Workspace } from '@/types/database.types'
@@ -76,6 +78,7 @@ export function WorkspaceSidebar({
     const pathname = usePathname()
     const router = useRouter()
     const supabase = createClient()
+    const [askAIOpen, setAskAIOpen] = useState(false)
 
     const handleLogout = async () => {
         await supabase.auth.signOut()
@@ -137,6 +140,33 @@ export function WorkspaceSidebar({
                         )
                     })}
                 </nav>
+
+                {/* Ask AI */}
+                <div className={cn('border-t border-border py-2', expanded ? 'px-2' : 'px-1')}>
+                    {expanded ? (
+                        <button
+                            onClick={() => setAskAIOpen(true)}
+                            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150 w-full"
+                        >
+                            <Sparkles className="h-4 w-4 shrink-0" />
+                            <span className="truncate animate-in fade-in duration-200">Ask AI</span>
+                        </button>
+                    ) : (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => setAskAIOpen(true)}
+                                    className="flex justify-center p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150 w-full"
+                                >
+                                    <Sparkles className="h-4 w-4 shrink-0" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="text-xs">Ask AI</TooltipContent>
+                        </Tooltip>
+                    )}
+                </div>
+
+                <AskAI open={askAIOpen} onOpenChange={setAskAIOpen} />
 
                 {/* Bottom section */}
                 <div className={cn('border-t border-border py-2 space-y-0.5', expanded ? 'px-2' : 'px-1')}>

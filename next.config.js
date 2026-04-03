@@ -4,7 +4,9 @@ const nextConfig = {
         // NOTE: If type errors occur, regenerate types with `npx supabase gen types typescript`
         ignoreBuildErrors: false,
     },
-    optimizePackageImports: ['lucide-react', 'recharts', '@dnd-kit/core', '@dnd-kit/sortable', 'sonner'],
+    experimental: {
+        optimizePackageImports: ['lucide-react', 'recharts', '@dnd-kit/core', '@dnd-kit/sortable', 'sonner', 'llamaindex'],
+    },
     images: {
         remotePatterns: [
             {
