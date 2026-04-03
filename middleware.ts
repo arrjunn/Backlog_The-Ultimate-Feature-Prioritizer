@@ -47,9 +47,10 @@ export async function middleware(request: NextRequest) {
         pathname === '/verify-email' ||
         pathname.startsWith('/auth/') ||
         pathname.startsWith('/api/digest') ||
-        pathname.startsWith('/api/backfill-embeddings')
+        pathname.startsWith('/api/backfill-embeddings') ||
+        pathname.startsWith('/api/triage')
 
-    // Redirect unauthenticated users away from protected routesvscode-webview://15v1jo83ju7pf6fq1uji1suohhchk95ehgk5178sdd2tjlk1jlqq/supabase/migrations/20260327000000_add_embeddings.sql
+    // Redirect unauthenticated users away from protected routes
     if (!user && !isPublicRoute) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
