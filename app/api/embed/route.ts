@@ -77,8 +77,8 @@ export async function POST(req: NextRequest) {
         if (error) throw error
 
         // Trigger auto-triage in the background (non-blocking)
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-        fetch(`${siteUrl}/api/triage`, {
+        const origin = req.nextUrl.origin
+        fetch(`${origin}/api/triage`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
